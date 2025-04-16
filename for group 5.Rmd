@@ -1,0 +1,115 @@
+---
+title: "for group 5"
+author: "Ryan Attwood"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+
+Exploratory data analysis: Pairwise plots between all variables
+```{r}
+library(readxl)
+prelim_data<-read_excel("C:/Users/ryana/Desktop/Prelim data sci data.xlsx")
+# removing one county without diabetes info 
+which(is.na(prelim_data$`Percent Diabetes 2013`))
+prelim_data<-prelim_data[-2917, ]
+
+which(is.na(prelim_data))
+
+median_Diabetes<-median(prelim_data$`Percent Diabetes 2013`)
+prelim_data$highlowDM<-ifelse(prelim_data$`Percent Diabetes 2013`> median_Diabetes,1,0)
+
+pairwise_df<-prelim_data[ ,c(3:8,14:20)]
+
+pairs(pairwise_df[1:5])
+pairs(pairwise_df[c(1,6:9)])
+pairs(pairwise_df[c(1,10:12)])
+
+
+```
+
+### 2
+
+    Marginal simple linear regressions.
+    Multiple linear regression.
+        Add polynomial terms or transformations of some of the predictors.
+        Add at least two interaction terms that make sense to you.
+
+```{r}
+
+linear_reg<-pairwise_df[ ,-13]
+name_var<-names(linear_reg)
+names(linear_reg)
+lm(`Percent Diabetes 2013`~`Poverty rate 2015`, data = linear_reg)
+lm(`Percent Diabetes 2013`~`Child Poverty Rate`, data = linear_reg)
+lm(`Percent Diabetes 2013`~`PCT 65 OLDER 10`, data = linear_reg)
+lm(`Percent Diabetes 2013`~`PCT 18 YOUNGER 10`, data = linear_reg)
+lm(`Percent Diabetes 2013`~`PCT_NHWHITE10`, data = linear_reg)
+lm(`Percent Diabetes 2013`~`METRO13`, data = linear_reg)
+lm(`Percent Diabetes 2013`~`POPLOSS10`, data = linear_reg)
+lm(`Percent Diabetes 2013`~`FOODINSEC_15_17`, data = linear_reg)
+lm(`Percent Diabetes 2013`~`Population_Estimate_2018`, data = linear_reg)
+lm(`Percent Diabetes 2013`~`Fast Food Per Thousand`, data = linear_reg)
+lm(`Percent Diabetes 2013`~`Per capita fast food`, data = linear_reg)
+
+
+
+All_terms<-lm(`Percent Diabetes 2013`~.,data=linear_reg)
+summary(All_terms)
+
+
+plot(prelim_data$`Fast Food Per Thousand`  ,prelim_data$`Percent Diabetes 2013`)
+ff_log<-log(prelim_data$`Fast Food Per Thousand`)
+plot(ff_log,prelim_data$`Percent Diabetes 2013`)
+
+#removing - inf from log transform 
+ff_log<-ifelse(ff_log==-Inf,NA,ff_log)
+
+plot(prelim_data$`Population_Estimate_2018`  ,prelim_data$`Percent Diabetes 2013`)
+pop_log<-log (prelim_data$`Population_Estimate_2018`)
+plot(pop_log ,prelim_data$`Percent Diabetes 2013`)
+
+
+complex_model<-lm(prelim_data$`Percent Diabetes 2013`~ ff_log+pop_log + ff_log*prelim_data$`Poverty rate 2015`+prelim_data$`Poverty rate 2015`+prelim_data$`Child Poverty Rate`+prelim_data$`PCT 65 OLDER 10`*prelim_data$`Poverty rate 2015`+prelim_data$`PCT 18 YOUNGER 10`+prelim_data$PCT_NHWHITE10*prelim_data$`Poverty rate 2015`+prelim_data$PCT_NHWHITE10+prelim_data$METRO13+prelim_data$POPLOSS10+prelim_data$FOODINSEC_15_17+prelim_data$`Per capita fast food`, na.action = na.omit )
+summary(complex_model)
+```
+### 3 
+
+```{r}
+library(class)
+classification<-read_excel("C:/Users/ryana/Desktop/Prelim data sci data.xlsx")
+which(is.na(classification$`Percent Diabetes 2013`))
+classification<-classification[-2917, ]
+classification$random_num<-runif(3142,0,1)
+median_Diabetes<-median(classification$`Percent Diabetes 2013`)
+classification$highlowDM<-ifelse(classification$`Percent Diabetes 2013`> median_Diabetes,1,0)
+classification$test_or_train<-ifelse(classification$random_num<0.1,"test","train")
+KNN_dataset<-classification[ ,c(4:8,14:19,21:22)]
+
+knn_test<-subset(KNN_dataset,KNN_dataset$test_or_train=="test")
+knn_test<-knn_test[ ,-13]
+
+knn_train<-subset(KNN_dataset,KNN_dataset$test_or_train=="train")
+knn_train<-knn_train[ ,-13]
+
+knn_df<-data.frame(K=numeric(),accuracy=numeric())
+#for (i in seq(1:2000))
+#  {
+#predicted_knn<-knn(train=knn_train,test=knn_test,cl=knn_train$highlowDM,k=i)
+#numeric_knn<-as.numeric(predicted_knn)
+#numeric_knn<-ifelse(numeric_knn==2,1,0)
+#df_run<-data.frame(cbind(numeric_knn,testdf$mpg01))
+#df_run$match<-ifelse(df_run$numeric_knn==df_run$V2,1,0)
+#accuracy<-mean(df_run$match)
+#knn_df[i,1]<-i
+#knn_df[i,2]<-accuracy
+#}
+
+
+
+
+```
+*this is as far as I was able to get this week*
+
+
+
