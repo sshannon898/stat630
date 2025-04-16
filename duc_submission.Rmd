@@ -1,0 +1,130 @@
+---
+title: "hw7_duc_submission"
+author: "Stephen Shannon"
+date: "2025-04-16"
+output: html_document
+---
+
+
+```{r}
+library(readxl)
+library(dplyr)
+
+access <- read_excel("C:/1. Học tập/Spring 2025/4. Stat 630/Final project/FoodEnvironmentAtlas (After converted).xlsx", sheet = "ACCESS")
+health <- read_excel("C:/1. Học tập/Spring 2025/4. Stat 630/Final project/FoodEnvironmentAtlas (After converted).xlsx", sheet = "HEALTH")
+socioeconomic <- read_excel("C:/1. Học tập/Spring 2025/4. Stat 630/Final project/FoodEnvironmentAtlas (After converted).xlsx", sheet = "SOCIOECONOMIC")
+
+data <- access %>%
+  inner_join(health, by = c("FIPS", "State", "County")) %>%
+  inner_join(socioeconomic, by = c("FIPS", "State", "County"))
+
+head(data)
+```
+
+### Task 1: Exploratory Data Analysis (Pairwise plots)
+
+```{r}
+
+# install.packages("GGally")
+library(GGally)
+
+num_vars <- data %>%
+  select_if(is.numeric)
+
+num_vars_subset <- num_vars[, 1:10]
+
+ggpairs(num_vars_subset)
+
+```
+
+### Task 2: Quantitative outcome analysis
+
+**Part a: Marginal simple linear regression**
+
+```{r}
+lm_simple <- lm(PCT_OBESE_ADULTS17 ~ PCT_LACCESS_POP15, data = data)
+summary(lm_simple)
+```
+
+**Part b: Multiple linear regression with polynomial and interaction terms**
+
+```{r}
+lm_multiple <- lm(PCT_OBESE_ADULTS17 ~ PCT_LACCESS_POP15 + I(PCT_LACCESS_POP15^2) + 
+                  PCT_DIABETES_ADULTS13 + PCT_NHBLACK10 + 
+                  PCT_LACCESS_POP15:PCT_DIABETES_ADULTS13 + 
+                  PCT_LACCESS_POP15:PCT_NHBLACK10,
+                  data = data)
+
+summary(lm_multiple)
+```
+
+### Task 3: Qualitative outcome analysis
+
+**Part a: KNN (K-nearest neighbors)**
+
+```{r}
+
+# install.packages("caret")
+library(dplyr)
+library(caret)
+
+data_knn <- data %>%
+  dplyr::select(METRO13, PCT_OBESE_ADULTS17, PCT_DIABETES_ADULTS13, PCT_NHBLACK10) %>%
+  na.omit()
+
+set.seed(123)
+trainIndex <- createDataPartition(data_knn$METRO13, p = 0.9, list = FALSE)
+train_knn <- data_knn[trainIndex,]
+test_knn <- data_knn[-trainIndex,]
+
+knn_fit <- train(as.factor(METRO13) ~ ., data = train_knn, method = "knn", tuneLength = 5)
+print(knn_fit)
+```
+
+**Part b: Logistic regression with polynomial and interaction terms**
+
+```{r}
+logistic_model <- glm(METRO13 ~ PCT_OBESE_ADULTS17 + I(PCT_OBESE_ADULTS17^2) + 
+                      PCT_DIABETES_ADULTS13 + 
+                      PCT_OBESE_ADULTS17:PCT_DIABETES_ADULTS13 +
+                      PCT_OBESE_ADULTS17:PCT_NHBLACK10,
+                      data = train_knn, family = binomial)
+
+summary(logistic_model)
+```
+
+**Part c: Linear discriminant analysis (LDA)**
+
+```{r}
+
+library(MASS)
+
+lda_fit <- lda(as.factor(METRO13) ~ ., data = train_knn)
+lda_pred <- predict(lda_fit, test_knn)
+table(lda_pred$class, test_knn$METRO13)
+```
+
+**Part d: Quadratic discriminant analysis (QDA)**
+
+```{r}
+
+qda_fit <- qda(as.factor(METRO13) ~ ., data = train_knn)
+qda_pred <- predict(qda_fit, test_knn)
+table(qda_pred$class, test_knn$METRO13)
+```
+
+**Part e: Naive Bayes (two kernels: Gaussian & Kernel density)**
+
+```{r}
+
+library(e1071)
+
+nb_gaussian <- naiveBayes(as.factor(METRO13) ~ ., data = train_knn)
+nb_gaussian_pred <- predict(nb_gaussian, test_knn)
+table(nb_gaussian_pred, test_knn$METRO13)
+
+nb_kernel <- train(as.factor(METRO13) ~ ., data = train_knn, method = "nb",
+                   trControl=trainControl(method="cv", number=10))
+print(nb_kernel)
+
+```
