@@ -1,0 +1,342 @@
+---
+title: "Preliminary Report: Stat 630 Final Project"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+    echo = TRUE,
+  message = FALSE,
+  warning = FALSE  
+)
+options(warn = -1)
+library(readxl)
+library(dplyr)
+library(ggplot2)
+library(GGally)
+library(boot)
+library(leaps)
+library(caret)
+```
+
+## 1. Load and Prepare Data
+
+```{r}
+# Load sheets
+local <- read_excel("C:/1. Học tập/Spring 2025/4. Stat 630/Final project/FoodEnvironmentAtlas (After converted).xlsx", sheet = "LOCAL")
+insec <- read_excel("C:/1. Học tập/Spring 2025/4. Stat 630/Final project/FoodEnvironmentAtlas (After converted).xlsx", sheet = "INSECURITY")
+socio <- read_excel("C:/1. Học tập/Spring 2025/4. Stat 630/Final project/FoodEnvironmentAtlas (After converted).xlsx", sheet = "SOCIOECONOMIC")
+access <- read_excel("C:/1. Học tập/Spring 2025/4. Stat 630/Final project/FoodEnvironmentAtlas (After converted).xlsx", sheet = "ACCESS")
+
+# Merge by FIPS
+data <- local %>%
+  inner_join(insec, by = c("FIPS", "State", "County")) %>%
+  inner_join(socio, by = c("FIPS", "State", "County")) %>%
+  inner_join(access, by = c("FIPS", "State", "County"))
+
+# Create binary outcome
+data$LowInsec <- ifelse(data$FOODINSEC_15_17 < median(data$FOODINSEC_15_17, na.rm = TRUE), 1, 0)
+```
+
+## 2. Exploratory Data Analysis (EDA)
+
+```{r}
+eda_data <- data %>%
+  select(FOODINSEC_15_17, DIRSALES_FARMS12, CSA12, AGRITRSM_OPS12,
+         PCT_LOCLSALE12, MEDHHINC15, POVRATE15, PCT_LACCESS_POP15) %>%
+  na.omit()
+
+ggpairs(eda_data)
+```
+
+**Interpretation**:
+
+-   **Food insecurity (FOODINSEC_15_17)** is **negatively correlated** (though weakly) with all local food access variables:
+
+    -   `DIRSALES_FARMS12` (−0.07), `CSA12` (−0.078), `AGRITRSM_OPS12` (0.028), and `PCT_LOCLSALE12` (−0.038).
+
+-   Stronger negative correlations exist with:
+
+    -   `MEDHHINC15` (−0.184) — **higher median income is linked to lower food insecurity**.
+
+    -   `POVRATE15` (0.182) — **higher poverty = higher food insecurity.**
+
+-   High multicollinearity noted between `CSA12` and `DIRSALES_FARMS12` (0.769)
+
+**Connection to Research question:**
+
+-   Although the correlation between local food production and food insecurity is weak, the negative direction supports your hypothesis - areas with more local food access may have slightly lower food insecurity. Further modeling is needed to control for income and poverty effects.
+
+### a. Food Insecurity vs. Each Local Food Access Variable
+
+-   This will show whether higher values of local food production indicators correspond with lower food insecurity.
+
+```{r}
+# Scatter plots with smoothing lines
+library(ggplot2)
+
+ggplot(data, aes(x = DIRSALES_FARMS12, y = FOODINSEC_15_17)) +
+  geom_point(alpha = 0.6) +
+  geom_smooth(method = "loess", se = FALSE, color = "blue") +
+  labs(title = "Direct Sales Farms vs. Food Insecurity", x = "Farms with Direct Sales", y = "% Food Insecure")
+
+ggplot(data, aes(x = CSA12, y = FOODINSEC_15_17)) +
+  geom_point(alpha = 0.6) +
+  geom_smooth(method = "loess", se = FALSE, color = "darkgreen") +
+  labs(title = "CSA Participation vs. Food Insecurity", x = "CSA Farms", y = "% Food Insecure")
+
+ggplot(data, aes(x = AGRITRSM_OPS12, y = FOODINSEC_15_17)) +
+  geom_point(alpha = 0.6) +
+  geom_smooth(method = "loess", se = FALSE, color = "purple") +
+  labs(title = "Agritourism vs. Food Insecurity", x = "Agritourism Ops", y = "% Food Insecure")
+```
+
+**Plot 1: Direct Sales Farms vs. Food Insecurity:**
+
+-   Interpretation:
+
+    -   The loess curve shows a slight downward trend in food insecurity as the number of direct sales farms increases, especially after about 200 farms.
+
+-   Connection to research question:
+
+    -   This supports the hypothesis that more direct-to-consumer farming may help reduce food insecurity, although the relationship is weak and mostly concentrated in counties with fewer than 200 such farms.
+
+**Plot 2: CSA Participation vs. Food Insecurity:**
+
+-   Interpretation:
+
+    -   Food insecurity decreases slightly as CSA participation increases up to \~50 farms, but then the trend reverses with a slight uptick.
+
+-   Connection to research question:
+
+    -   CSA may be beneficial in lowering food insecurity at moderate levels, but the uptick at high CSA counts may indicate diminishing returns or confounding effects in more developed areas.
+
+**Plot 3: Agritourism vs. Food Insecurity:**
+
+-   Interpretation:
+
+    -   Unexpectedly, the curve shows a slight positive association - food insecurity slightly increases with more agritourism operations.
+
+-   Connection to Research Question:
+
+    -   This suggests agritourism may not directly contribute to local food access or affordability, highlighting that not all forms of local food activity help reduce insecurity.
+
+### b. Boxplot: Food Insecurity by Income Level
+
+-   This groups counties into low/high income to see how food insecurity compares
+
+```{r}
+data$IncomeGroup <- ifelse(data$MEDHHINC15 < median(data$MEDHHINC15, na.rm = TRUE), "Low Income", "High Income")
+
+ggplot(data, aes(x = IncomeGroup, y = FOODINSEC_15_17)) +
+  geom_boxplot(fill = "tomato") +
+  labs(title = "Food Insecurity by Income Group", x = "Income Group", y = "% Food Insecure")
+```
+
+**Interpretation:**
+
+-   Median food insecurity is slightly higher in **low-income counties**, but the overall spread overlaps with high-income counties. The "NA" group has the lowest food insecurity, likely due to small or anomalous samples.
+
+**Connection to research question:**
+
+-   While income shows a **mild influence** on food insecurity, the variation within each group suggests other factors — like **local food systems** — may also play a critical role. This justifies including both income and local food access in your models.
+
+### c. Boxplot: Food Insecurity by Local Food Sales Group
+
+-   Show how counties with more local food sales differ in insecurity.
+
+```{r}
+data$LocalSalesGroup <- ifelse(data$PCT_LOCLSALE12 < median(data$PCT_LOCLSALE12, na.rm = TRUE), "Low Local Sales", "High Local Sales")
+
+ggplot(data, aes(x = LocalSalesGroup, y = FOODINSEC_15_17)) +
+  geom_boxplot(fill = "steelblue") +
+  labs(title = "Food Insecurity by Local Food Sales", x = "Local Sales Group", y = "% Food Insecure")
+```
+
+**Interpretation:**
+
+-   There is no clear difference in median food insecurity between counties with **high vs. low local food sales** – both groups show similar distribution and central tendency. The "NA" group skews slightly lower, but likely due to missing or unreported data.
+
+**Connection to research question:**
+
+-   This suggests that local food sales alone may not have a strong direct effect on food insecurity – or that its effect might be conditional on other factors like income, access, or program participation. Reinforces the need for multivariable modeling.
+
+### d. Heatmap of correlation
+
+-   To visually emphasize strengths and directions of relationships.
+
+```{r}
+library(corrplot)
+
+eda_subset <- data %>%
+  select(FOODINSEC_15_17, DIRSALES_FARMS12, CSA12, AGRITRSM_OPS12, PCT_LOCLSALE12,
+         MEDHHINC15, POVRATE15, PCT_LACCESS_POP15) %>%
+  na.omit()
+
+cor_matrix <- cor(eda_subset)
+corrplot(cor_matrix, method = "color", type = "upper", addCoef.col = "black", tl.col = "black")
+```
+
+**Interpretation:**
+
+-   `FOODINSEC_15_17` is weakly **negatively correlated** with `MEDHHINC15` (−0.18), `DIRSALES_FARMS12` (−0.07), and `CSA12` (−0.08).
+
+-   `POVRATE15` and `MEDHHINC15` are **strongly negatively correlated** (−0.79), reflecting expected economic patterns.
+
+-    `CSA12` and `DIRSALES_FARMS12` show **very high correlation** (0.77), suggesting multicollinearity risk.
+
+**Connection to research question:**
+
+-   While local food access variables show **only mild negative associations** with food insecurity, the heatmap supports the hypothesis that they may contribute to reductions. However, their effects are likely subtle and should be evaluated within multivariate models that control for income and poverty.
+
+### e. Choropleth Map: Food Insecurity by County
+
+```{r}
+# Load necessary libraries
+library(tigris)
+library(sf)
+library(dplyr)
+library(ggplot2)
+
+# Get U.S. counties shapefile (2018 resolution)
+options(tigris_use_cache = TRUE)
+counties_sf <- counties(cb = TRUE, resolution = "20m", year = 2018) %>%
+  st_transform(crs = 4326)
+
+# Ensure FIPS is numeric, then format as 5-digit character
+data$GEOID <- sprintf("%05d", as.numeric(data$FIPS))
+
+# Join county shapefile with your data using GEOID
+map_data <- counties_sf %>%
+  left_join(data, by = "GEOID")
+
+# Plot map of food insecurity rate
+ggplot(map_data) +
+  geom_sf(aes(fill = FOODINSEC_15_17), color = NA) +
+  scale_fill_viridis_c(option = "plasma", name = "% Food Insecure") +
+  coord_sf(xlim = c(-125, -65), ylim = c(25, 50), expand = FALSE) +
+  theme_minimal() +
+  labs(title = "Food Insecurity Rate by U.S. County (2015–2017)",
+       caption = "Data: USDA Food Environment Atlas")
+
+
+```
+
+**Interpretation:**
+
+-   High food insecurity (Yellow regions) clusters in the South and Southwest.
+
+-   Lower rates (dark purple) dominate parts of the Midwest, Northeast, and West Coast.
+
+-   This reflects known regional disparities in poverty, access, and health outcomes.
+
+### f. Choropleth Map: Local Food Sales (% of Total Sales)
+
+```{r}
+# Load necessary libraries (if not already loaded)
+library(tigris)
+library(sf)
+library(dplyr)
+library(ggplot2)
+
+# Get U.S. counties shapefile
+options(tigris_use_cache = TRUE)
+counties_sf <- counties(cb = TRUE, resolution = "20m", year = 2018) %>%
+  st_transform(crs = 4326)
+
+# Make sure GEOID is formatted properly
+data$GEOID <- sprintf("%05d", as.numeric(data$FIPS))
+
+# Join county geometry with your data
+map_data <- counties_sf %>%
+  left_join(data, by = "GEOID")
+
+# Plot map of % local food sales
+ggplot(map_data) +
+  geom_sf(aes(fill = PCT_LOCLSALE12), color = NA) +
+  scale_fill_viridis_c(option = "cividis", name = "% Local Food Sales") +
+  coord_sf(xlim = c(-125, -65), ylim = c(25, 50), expand = FALSE) +
+  theme_minimal() +
+  labs(title = "Local Food Sales (% of Total) by U.S. County",
+       caption = "Data: USDA Food Environment Atlas")
+```
+
+**Interpretation**:
+
+-   Most counties have very low local food sales (dark blue), with just a few pockets of higher percentage (lighter yellow) in Northeast and scattered rural areas.
+
+-   Indicates that local food systems are underutilized or undereported across most of the US.
+
+**Combined insights from plot 5 and 6:**
+
+-   Areas with higher food insecurity do not seem to overlap much with areas that have strong local food sales.
+
+-   This visually supports the research question - exploring whether expanding local food systems could help reduce food insecurity in vulnerable regions.
+
+## 3. Linear Models (Chapter 3)
+
+```{r}
+# Subset data and remove NAs before modeling
+model_data <- data %>%
+  select(FOODINSEC_15_17, DIRSALES_FARMS12, CSA12, AGRITRSM_OPS12,
+         PCT_LOCLSALE12, MEDHHINC15, POVRATE15, PCT_LACCESS_POP15) %>%
+  na.omit()
+
+# Fit linear model with polynomial and interaction terms
+lm_model <- lm(FOODINSEC_15_17 ~ poly(DIRSALES_FARMS12, 2) + CSA12 + AGRITRSM_OPS12 +
+               PCT_LOCLSALE12 * MEDHHINC15 + POVRATE15 * PCT_LACCESS_POP15,
+               data = model_data)
+
+summary(lm_model)
+
+
+```
+
+## 4. Best Subset Selection (Chapter 6)
+
+```{r}
+subset_data <- data %>%
+  select(FOODINSEC_15_17, DIRSALES_FARMS12, CSA12, AGRITRSM_OPS12,
+         PCT_LOCLSALE12, MEDHHINC15, POVRATE15, PCT_LACCESS_POP15) %>%
+  na.omit()
+
+regfit.full <- regsubsets(FOODINSEC_15_17 ~ ., data = subset_data, nvmax = 8)
+summary(regfit.full)
+```
+
+## 5. Cross-Validation (Chapter 5)
+
+```{r}
+set.seed(123)
+train_control <- trainControl(method = "cv", number = 10)
+cv_model <- train(FOODINSEC_15_17 ~ ., data = subset_data, method = "lm", trControl = train_control)
+cv_model
+```
+
+## 6. Bootstrap Confidence Interval (Chapter 5)
+
+```{r}
+boot_fn <- function(data, index) {
+  fit <- lm(FOODINSEC_15_17 ~ DIRSALES_FARMS12, data = data, subset = index)
+  return(coef(fit))
+}
+
+boot(data = subset_data, statistic = boot_fn, R = 1000)
+```
+
+## 7. Simulation Study Outline
+
+```{r}
+# Simulate predictors and outcome
+set.seed(123)
+n <- 200
+x1 <- rnorm(n, mean = 10, sd = 3)
+x2 <- rnorm(n, mean = 5, sd = 2)
+y <- 0.5 * x1 - 0.3 * x2 + rnorm(n)
+
+sim_data <- data.frame(y = y, x1 = x1, x2 = x2)
+
+# Fit model
+sim_lm <- lm(y ~ x1 + x2, data = sim_data)
+summary(sim_lm)
+```
