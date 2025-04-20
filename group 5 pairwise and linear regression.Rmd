@@ -9,7 +9,7 @@ output: html_document
 
 ```{r}
 library(readxl)
-data<-read_excel("C:/Users/ryana/Desktop/diabetes and predictors 4-18.xlsx")
+data<-read_excel("C:/Users/ryana/Desktop/diabetes and predictors 4-19.xlsx")
 # removing one county without diabetes info 
 removal<-which(is.na(data$`Percent_Diabetes_2013`))
 data<-data[-removal, ]
