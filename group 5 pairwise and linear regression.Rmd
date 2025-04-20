@@ -1,0 +1,131 @@
+---
+title: "for group 5"
+author: "Ryan Attwood"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+
+
+```{r}
+library(readxl)
+data<-read_excel("C:/Users/ryana/Desktop/diabetes and predictors 4-18.xlsx")
+# removing one county without diabetes info 
+removal<-which(is.na(data$`Percent_Diabetes_2013`))
+data<-data[-removal, ]
+
+#need to normalize CSA count 
+data$CSA_2013 <- (data$CSA_2013/data$Population_Estimate_2013)
+
+
+#Binary to factor 
+data$`FOOD_BANKS_2018`<-as.factor(data$`FOOD_BANKS_2018`)
+data$`Persistant_poverty_counties_2010`<-as.factor(data$`Persistant_poverty_counties_2010`)
+data$`metronon_metro_county_2010`<-as.factor(data$`metronon_metro_county_2010`)
+data$`population_loss_county_2010` <-as.factor(data$`population_loss_county_2010`)
+
+#State to region 
+
+
+northeast<-c("ME","NH","MA","CT","RI","NY","PA","NJ")
+south<-c("DC","MD","DE","WV","KY","TN","VA","NC","SC","GA","FL","AL","MS","LA","AR","OK","TX")
+midwest<-c("OH","IN","MI","IL","WI","MO","IA","MN","ND","SD","NE","KS")
+
+data$region<-0
+for (i in 1:nrow(data)){
+if (data$State[i] %in% northeast){
+  data$region[i] = "Northeast"
+}
+  else if (data$State[i] %in% south){
+  data$region[i] = "South"}
+  else if (data$State[i] %in% midwest){
+    data$region[i] = "Midwest"
+  }
+}
+for (i in 1:nrow(data)){
+  if (data$region[i]==0)
+    data$region[i]<-"West"
+}   
+
+
+
+
+
+
+#create binary outcome 
+median_Diabetes<-median(data$`Percent_Diabetes_2013`)
+data$highlowDM<-ifelse(data$`Percent_Diabetes_2013`> median_Diabetes,1,0)
+
+
+```
+
+```{r}
+library(tidyverse)
+library(ggplot2)
+library(GGally)
+columnnames<-(names(data))
+
+EA_1<-data%>%
+  select(columnnames[c(4:7,3)])
+ggpairs(EA_1)
+
+EA_2<-data%>%
+  select(columnnames[c(8:11,3)])
+ggpairs(EA_2)
+
+EA_3<-data%>%
+  select(columnnames[c(12:15,3)])
+ggpairs(EA_3)
+
+EA_4<-data%>%
+  select(columnnames[c(16:19,3)])
+ggpairs(EA_4)
+
+EA_5<-data%>%
+  select(columnnames[c(20:23,3)])
+ggpairs(EA_5)
+
+EA_6<-data%>%
+  select(columnnames[c(24:27,3)])
+ggpairs(EA_5)
+
+EA_7<-data%>%
+  select(columnnames[c(28:31,3)])
+ggpairs(EA_7)
+
+EA_8<-data%>%
+  select(columnnames[c(32:35,3)])
+ggpairs(EA_8)
+```
+
+    Marginal simple linear regressions.
+    Multiple linear regression.
+        Add polynomial terms or transformations of some of the predictors.
+        Add at least two interaction terms that make sense to you.
+```{r}
+#Marginal linear regression - all predictors 
+
+data_for_regression<-dplyr::select(data,-State,-County,-highlowDM,)
+
+models <- list()
+
+# Loop through predictors
+for (predictor in names(data_for_regression)[-1]) {  # Exclude 'y' (dependent variable)
+  formula <- as.formula(paste("`Percent_Diabetes_2013`~",predictor))  # Create formula dynamically
+  models[[predictor]] <- lm(formula, data = data_for_regression)   # Fit the model and store it
+}
+
+# Print summaries of all models
+for (predictor in names(models)) {
+  cat("\nModel for predictor:", predictor, "\n")
+  print(summary(models[[predictor]]))
+}
+
+
+```
+
+```{r}
+all_terms_LM<-lm(data_for_regression$Percent_Diabetes_2013~., data = data_for_regression)
+summary(all_terms_LM)
+
+```
