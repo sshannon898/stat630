@@ -185,3 +185,151 @@ summary(selected_model)
 
 
 ```
+```{r}
+all_terms_LM<-lm(data_for_regression$Percent_Diabetes_2013~., data = data_for_regression)
+summary(all_terms_LM)
+
+#test and train for regression 
+set.seed(1202)
+data_for_regression$random<-runif(2883,0,1)
+regression_train<-subset(data_for_regression,data_for_regression$random>0.1)
+regression_test<-subset(data_for_regression, data_for_regression$random<0.1)
+
+regression_test<-regression_test[,-34]
+regression_train<-regression_train[ ,-34]
+
+
+#best subset via leaps and cross validation
+library(leaps)
+regfit_full <- regsubsets(Percent_Diabetes_2013 ~., regression_train,nvmax =35, method = "forward")
+summary(regfit_full)
+
+test_matrix<-model.matrix(Percent_Diabetes_2013~.,regression_test,nvmax=35)
+var_test<-NA
+for (j in seq(1:33))
+{
+coef <- coef(regfit_full, id = j)
+predict <- test_matrix[, names(coef)] %*% coef
+var_test[j]<-mean((regression_test$Percent_Diabetes_2013-predict)^2)
+}
+plot(var_test)
+
+# model selected via cross validation 
+selected_coef<-coef(regfit_full, id = 27)
+names_for_model<-names(selected_coef[-1])
+print(names_for_model)
+df_for_model<-data_for_regression %>%
+  select(Percent_Diabetes_2013,names_for_model[1:7],FOOD_BANKS_2018,names_for_model[9:21],Persistant_poverty_counties_2010, population_loss_county_2010 ,metronon_metro_county_2010,region)
+selected_model<-lm(Percent_Diabetes_2013~.,data=df_for_model)
+summary(selected_model)
+```
+```{r}
+#lasso / ridge selection 
+library(glmnet)
+lambda_grid <- 10 ^ seq(10, -2, length = 100)
+x <- scale(model.matrix(Percent_Diabetes_2013 ~ .,data = regression_train)[,-1])
+ridge_reg <- cv.glmnet(x,regression_train$Percent_Diabetes_2013, alpha=0, nfolds=10,lambda = lambda_grid)
+plot(ridge_reg)
+lambda_min_ridge<- ridge_reg$lambda.min
+
+optimal_ridge<-glmnet(x,regression_train$Percent_Diabetes_2013,alpha=0,lambda = lambda_min_ridge)
+coef(optimal_ridge)
+
+
+
+lambda_grid <- 10 ^ seq(10, -2, length = 100)
+
+lasso_reg <- cv.glmnet(x,regression_train$Percent_Diabetes_2013,alpha=1, nfolds=10,lambda = lambda_grid)
+plot(lasso_reg)
+lambda_min_lasso<-lasso_reg$lambda.min
+
+optimal_lasso<-glmnet(x,regression_train$Percent_Diabetes_2013,alpha=1, lambda = lambda_min_lasso)
+coef(optimal_lasso)
+
+
+
+```
+
+```{r}
+
+x_test <- scale(model.matrix(Percent_Diabetes_2013 ~ .,data = regression_test)[,-1])
+predict_lasso<-predict.glmnet(optimal_lasso,newx = x_test,s=lambda_min_lasso)
+var_test_laso<-mean((regression_test$Percent_Diabetes_2013-predict_lasso)^2)
+
+predict_ridge<-predict.glmnet(optimal_ridge,newx = x_test,s=lambda_min_ridge)
+var_test_ridge<-mean((regression_test$Percent_Diabetes_2013-predict_ridge)^2)
+
+print(c(min(var_test),"Variance selection",var_test_laso,"Variance lasso", var_test_ridge, "variance ridge"))
+
+```
+
+
+
+```{r}
+# logistic regression - stepwise selection start 
+
+data_for_logistic<-dplyr::select(data,-State,-County,-Percent_Diabetes_2013)
+set.seed(1202)
+
+data_for_logistic$random<-runif(2883,0,1)
+logistic_train<-subset(data_for_logistic,data_for_logistic$random>0.1)
+logistic_test<-subset(data_for_logistic, data_for_logistic$random<0.1)
+model_log<-glm(highlowDM~.,data =logistic_train, family= binomial )
+predicted_result_full<-predict.glm(model_log, newdata =logistic_test,type="response")
+predicted_result_full<-ifelse(predicted_result_full>0.5,1,0)
+comparison<-as.data.frame(cbind(predicted_result_full,logistic_test$highlowDM))
+
+C <-
+  bind_cols(
+    true_class = comparison$V2 ,
+    pred_class = comparison$predicted_result_full
+  )
+
+C %>% 
+  group_by(true_class) %>%
+  count(pred_class)
+
+
+
+
+step(model_log)
+
+ best_fit_LR<-glm(formula = highlowDM ~ percent_household_low_access_2015 + 
+    Grocery_per_thousand_2011 + Specialty_store_per_thousand_2011 + 
+    SNAP_store_per_thousand_2012 + Full_service_restauraunt_per_thousand_2011 + 
+    Statewide_SNAP_participation_rate_2011 + Direct_farm_sales_per_capita_2012 + 
+    Farmers_markets_per_capita_2013 + Statewide_percent_obesity_2012 + 
+    Recreation_and_fitness_facilties_per_1000_2011 + percent_white_2010 + 
+    percent_hispanic_2010 + percent_asian_2010 + percent_pacific_islander_2010 + 
+    percent_65_and_older_2010 + percent_18_or_younger_2010 + 
+    Median_household_income_2015 + Persistant_poverty_counties_2010 + 
+    metronon_metro_county_2010 + population_loss_county_2010 + 
+    region, family = binomial, data = logistic_train)
+
+
+predicted_result<-predict.glm(best_fit_LR, newdata =logistic_test,type="response")
+predicted_result<-ifelse(predicted_result>0.5,1,0)
+comparison<-as.data.frame(cbind(predicted_result,logistic_test$highlowDM))
+
+
+
+
+
+C <-
+  bind_cols(
+    true_class = comparison$V2 ,
+    pred_class = comparison$predicted_result
+  )
+
+C %>% 
+  group_by(true_class) %>%
+  count(pred_class)
+
+
+
+```
+
+
+
+
+
