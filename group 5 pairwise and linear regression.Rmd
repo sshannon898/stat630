@@ -185,3 +185,70 @@ summary(selected_model)
 
 
 ```
+```{r}
+all_terms_LM<-lm(data_for_regression$Percent_Diabetes_2013~., data = data_for_regression)
+summary(all_terms_LM)
+
+#test and train for regression 
+set.seed(1202)
+data_for_regression$random<-runif(2883,0,1)
+regression_train<-subset(data_for_regression,data_for_regression$random>0.1)
+regression_test<-subset(data_for_regression, data_for_regression$random<0.1)
+
+regression_test<-regression_test[,-34]
+regression_train<-regression_train[ ,-34]
+
+
+#best subset via leaps and cross validation
+library(leaps)
+regfit_full <- regsubsets(Percent_Diabetes_2013 ~., regression_train,nvmax =35, method = "forward")
+summary(regfit_full)
+
+test_matrix<-model.matrix(Percent_Diabetes_2013~.,regression_test,nvmax=35)
+var_test<-NA
+for (j in seq(1:33))
+{
+coef <- coef(regfit_full, id = j)
+predict <- test_matrix[, names(coef)] %*% coef
+var_test[j]<-mean((regression_test$Percent_Diabetes_2013-predict)^2)
+}
+plot(var_test)
+
+# model selected via cross validation 
+selected_coef<-coef(regfit_full, id = 27)
+names_for_model<-names(selected_coef[-1])
+print(names_for_model)
+df_for_model<-data_for_regression %>%
+  select(Percent_Diabetes_2013,names_for_model[1:7],FOOD_BANKS_2018,names_for_model[9:21],Persistant_poverty_counties_2010, population_loss_county_2010 ,metronon_metro_county_2010,region)
+selected_model<-lm(Percent_Diabetes_2013~.,data=df_for_model)
+summary(selected_model)
+```
+```{r}
+#lasso / ridge selection 
+library(glmnet)
+lambda_grid <- 10 ^ seq(10, -2, length = 100)
+x <- scale(model.matrix(Percent_Diabetes_2013 ~ .,data = regression_train)[,-1])
+ridge_reg <- cv.glmnet(x,regression_train$Percent_Diabetes_2013, alpha=0, nfolds=10,lambda = lambda_grid)
+plot(ridge_reg)
+lambda_min_ridge<- ridge_reg$lambda.min
+
+optimal_ridge<-glmnet(x,regression_train$Percent_Diabetes_2013,alpha=0,lambda = lambda_min_ridge)
+coef(optimal_ridge)
+
+
+
+lambda_grid <- 10 ^ seq(10, -2, length = 100)
+
+lasso_reg <- cv.glmnet(x,regression_train$Percent_Diabetes_2013,alpha=1, nfolds=10,lambda = lambda_grid)
+plot(lasso_reg)
+lambda_min_lasso<-lasso_reg$lambda.min
+
+optimal_lasso<-glmnet(x,regression_train$Percent_Diabetes_2013,alpha=1, lambda = lambda_min_lasso)
+coef(optimal_lasso)
+
+
+
+```
+
+
+
