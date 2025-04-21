@@ -249,19 +249,52 @@ coef(optimal_lasso)
 
 
 ```
+
 ```{r}
-# logistic regression start 
+
+x_test <- scale(model.matrix(Percent_Diabetes_2013 ~ .,data = regression_test)[,-1])
+predict_lasso<-predict.glmnet(optimal_lasso,newx = x_test,s=lambda_min_lasso)
+var_test_laso<-mean((regression_test$Percent_Diabetes_2013-predict_lasso)^2)
+
+predict_ridge<-predict.glmnet(optimal_ridge,newx = x_test,s=lambda_min_ridge)
+var_test_ridge<-mean((regression_test$Percent_Diabetes_2013-predict_ridge)^2)
+
+print(c(min(var_test),"Variance selection",var_test_laso,"Variance lasso", var_test_ridge, "variance ridge"))
+
+```
+
+
+
+```{r}
+# logistic regression - stepwise selection start 
+
 data_for_logistic<-dplyr::select(data,-State,-County,-Percent_Diabetes_2013)
 set.seed(1202)
+
 data_for_logistic$random<-runif(2883,0,1)
 logistic_train<-subset(data_for_logistic,data_for_logistic$random>0.1)
 logistic_test<-subset(data_for_logistic, data_for_logistic$random<0.1)
+model_log<-glm(highlowDM~.,data =logistic_train, family= binomial )
+predicted_result_full<-predict.glm(model_log, newdata =logistic_test,type="response")
+predicted_result_full<-ifelse(predicted_result_full>0.5,1,0)
+comparison<-as.data.frame(cbind(predicted_result_full,logistic_test$highlowDM))
+
+C <-
+  bind_cols(
+    true_class = comparison$V2 ,
+    pred_class = comparison$predicted_result_full
+  )
+
+C %>% 
+  group_by(true_class) %>%
+  count(pred_class)
 
 
-model_log<-glm(highlowDM~.,data =logistic_train, family=binomial )
+
+
 step(model_log)
 
-BEST_STEP<-glm(formula = highlowDM ~ percent_household_low_access_2015 + 
+ best_fit_LR<-glm(formula = highlowDM ~ percent_household_low_access_2015 + 
     Grocery_per_thousand_2011 + Specialty_store_per_thousand_2011 + 
     SNAP_store_per_thousand_2012 + Full_service_restauraunt_per_thousand_2011 + 
     Statewide_SNAP_participation_rate_2011 + Direct_farm_sales_per_capita_2012 + 
@@ -272,5 +305,31 @@ BEST_STEP<-glm(formula = highlowDM ~ percent_household_low_access_2015 +
     Median_household_income_2015 + Persistant_poverty_counties_2010 + 
     metronon_metro_county_2010 + population_loss_county_2010 + 
     region, family = binomial, data = logistic_train)
+
+
+predicted_result<-predict.glm(best_fit_LR, newdata =logistic_test,type="response")
+predicted_result<-ifelse(predicted_result>0.5,1,0)
+comparison<-as.data.frame(cbind(predicted_result,logistic_test$highlowDM))
+
+
+
+
+
+C <-
+  bind_cols(
+    true_class = comparison$V2 ,
+    pred_class = comparison$predicted_result
+  )
+
+C %>% 
+  group_by(true_class) %>%
+  count(pred_class)
+
+
+
 ```
+
+
+
+
 
