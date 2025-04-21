@@ -1,0 +1,280 @@
+---
+title: "classification"
+author: "Stephen Shannon"
+date: "2025-04-21"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+
+library(readxl)
+library(ggplot2)
+library(tidyverse)
+library(MASS)
+
+    # Qualitative outcomes:
+    # 
+    # KNN
+    # Logistic/multinomial logistic regression.
+    #     Add polynomial terms or transformations of some of the predictors.
+    #     Add at least two interaction terms that make sense to you.
+    # LDA
+    # QDA
+    # Naive Bayes (at least two kernels)
+
+
+```
+
+
+```{r}
+
+  # Data prep
+
+local_path <- "C:/Users/sshan/Desktop/umass amherst/STA630/project/stat630/"
+
+data <- read_xlsx(paste0(local_path,"diabetes and predictors 4-19.xlsx"))
+
+
+# removing one county without diabetes info 
+removal<-which(is.na(data$`Percent_Diabetes_2013`))
+data<-data[-removal, ]
+
+#removing county with missing population estimate
+removal<-which(is.na.data.frame(data[,4]))
+data<-data[-removal, ]
+
+#removing all low access counties with NA
+removal<-which(is.na.data.frame(data[,5]))
+data<-data[-removal, ]
+
+
+#removing direct farm sales counties with NA
+removal<-which(is.na.data.frame(data[,16]))
+data<-data[-removal, ]
+
+#need to normalize CSA count 
+data$CSA_2013 <- (data$CSA_2013/data$Population_Estimate_2013)
+
+#Binary to factor 
+# data$`FOOD_BANKS_2018`<-as.factor(data$`FOOD_BANKS_2018`)
+# data$`Persistant_poverty_counties_2010`<-as.factor(data$`Persistant_poverty_counties_2010`)
+# data$`metronon_metro_county_2010`<-as.factor(data$`metronon_metro_county_2010`)
+# data$`population_loss_county_2010` <-as.factor(data$`population_loss_county_2010`)
+
+#State to region 
+
+# northeast<-c("ME","NH","MA","CT","RI","NY","PA","NJ")
+# south<-c("DC","MD","DE","WV","KY","TN","VA","NC","SC","GA","FL","AL","MS","LA","AR","OK","TX")
+# midwest<-c("OH","IN","MI","IL","WI","MO","IA","MN","ND","SD","NE","KS")
+
+# data$region<-0
+# for (i in 1:nrow(data)){
+# if (data$State[i] %in% northeast){
+#   data$region[i] = "Northeast"
+# }
+#   else if (data$State[i] %in% south){
+#   data$region[i] = "South"}
+#   else if (data$State[i] %in% midwest){
+#     data$region[i] = "Midwest"
+#   }
+# }
+# for (i in 1:nrow(data)){
+#   if (data$region[i]==0)
+#     data$region[i]<-"West"
+# }   
+
+
+#change population and oncome to log
+
+# data$Population_Estimate_2013<-log(data$Population_Estimate_2013)
+# data$Median_household_income_2015<-log(data$Median_household_income_2015)
+
+
+
+
+#create binary outcome 
+# median_Diabetes<-median(data$`Percent_Diabetes_2013`)
+# data$highlowDM<-ifelse(data$`Percent_Diabetes_2013`> median_Diabetes,1,0)
+
+which(is.na.data.frame(data[,4]))
+
+```
+
+
+```{r}
+
+df <- data
+
+# Create binary outcome and split into train/test
+df <- df %>%
+  mutate(
+    diabetes01 = as.factor(ifelse(Percent_Diabetes_2013 > median(Percent_Diabetes_2013, na.rm = TRUE), 1, 2)),
+    split_group = ifelse(row_number() %in% sample(row_number(), 0.9 * n()), "train", "test")
+  ) %>%
+  dplyr::select(-Percent_Diabetes_2013, -County)
+
+northeast <- c("CT", "ME", "MA", "NH", "RI", "VT", "NJ", "NY", "PA")
+midwest   <- c("IL", "IN", "MI", "OH", "WI", "IA", "KS", "MN", "MO", "NE", "ND", "SD")
+south     <- c("DE", "FL", "GA", "MD", "NC", "SC", "VA", "DC", "WV", "AL", "KY", "MS", "TN", "AR", "LA", "OK", "TX")
+west      <- c("AZ", "CO", "ID", "MT", "NV", "NM", "UT", "WY", "AK", "CA", "HI", "OR", "WA")
+
+df <- df %>%
+  mutate(region = case_when(
+    State %in% northeast ~ "Northeast",
+    State %in% midwest   ~ "Midwest",
+    State %in% south     ~ "South",
+    State %in% west      ~ "West"
+  )) %>%
+  dplyr::select(-State)
+
+df_train <- df %>% filter(split_group == "train") %>%
+  dplyr::select(-split_group)
+
+lda_fit <- MASS::lda(diabetes01 ~ ., data = df_train)
+
+full_df <- df %>% mutate(
+  mass_lda_predict = predict(lda_fit, newdata = df)$class
+)
+
+
+train_mse <- nrow(full_df[full_df$split_group == "train" &
+                         (full_df$diabetes01 != full_df$mass_lda_predict), ]) / nrow(full_df[full_df$split_group == "train", ]) 
+train_mse
+  # train_mse = 0.8522...
+
+
+test_mse <- nrow(full_df[full_df$split_group == "test"
+                      & (full_df$diabetes01 != full_df$mass_lda_predict), ]) / nrow(full_df[full_df$split_group == "test", ])
+test_mse
+
+
+# 
+# dt <- split(df, f = df$split_group)
+# 
+# # Identify numeric variables (excluding the target and group vars)
+# predictor_vars <- df %>%
+#   dplyr::select(where(is.numeric), -FOOD_BANKS_2018, -population_loss_county_2010, -metronon_metro_county_2010, -Persistant_poverty_counties_2010) %>%
+#   dplyr::select(-Percent_Diabetes_2013) %>%
+#   colnames()
+# 
+# # Compute priors
+# est_pi <- c(
+#   nrow(dt$train[dt$train$diabetes01 == 1, ]) / nrow(dt$train),
+#   nrow(dt$train[dt$train$diabetes01 == 2, ]) / nrow(dt$train)
+# )
+# 
+# # Compute class-specific means
+# est_mu1 <- matrix(
+#   colMeans(dt$train %>%
+#              filter(diabetes01 == 1) %>%
+#              dplyr::select(all_of(predictor_vars)), na.rm = TRUE),
+#   ncol = 1
+# )
+# 
+# est_mu2 <- matrix(
+#   colMeans(dt$train %>%
+#              filter(diabetes01 == 2) %>%
+#              dplyr::select(all_of(predictor_vars)), na.rm = TRUE),
+#   ncol = 1
+# )
+# 
+# # Compute pooled covariance matrix
+# ssq_1 <- (nrow(dt$train[dt$train$diabetes01 == 1, ]) - 1) *
+#   var(dt$train %>%
+#         filter(diabetes01 == 1) %>%
+#         dplyr::select(all_of(predictor_vars)), na.rm = TRUE)
+# 
+# ssq_2 <- (nrow(dt$train[dt$train$diabetes01 == 2, ]) - 1) *
+#   var(dt$train %>%
+#         filter(diabetes01 == 2) %>%
+#         dplyr::select(all_of(predictor_vars)), na.rm = TRUE)
+# 
+# est_Sigma <- (ssq_1 + ssq_2) / (nrow(dt$train) - length(unique(dt$train$diabetes01)))
+# 
+# # Compute LDA vector and decision boundary
+# LDA_a <- t(est_mu1 - est_mu2) %*% solve(est_Sigma)
+# LDA_m <- log(est_pi[2] / est_pi[1]) + 0.5 * LDA_a %*% (est_mu1 + est_mu2)
+# 
+# # Combine and predict
+# full <- bind_rows(dt) %>%
+#   mutate(
+#     lda_value = as.numeric(as.matrix(dplyr::select(., all_of(predictor_vars))) %*% t(LDA_a)),
+#     class_predict = ifelse(lda_value > as.numeric(LDA_m), 1, 2)
+#   )
+# 
+# # Calculate train/test MSE
+# train_mse <- mean(full$split_group == "train" & full$diabetes01 != full$class_predict)
+# test_mse  <- mean(full$split_group == "test"  & full$diabetes01 != full$class_predict)
+# 
+# train_mse
+# test_mse
+
+
+
+
+```
+
+```{r}
+
+library(dplyr)
+library(MASS)
+
+df <- data
+
+# Create binary outcome and split into train/test
+df <- df %>%
+  mutate(
+    diabetes01 = as.factor(ifelse(Percent_Diabetes_2013 > median(Percent_Diabetes_2013, na.rm = TRUE), 1, 2)),
+    split_group = ifelse(row_number() %in% sample(row_number(), 0.9 * n()), "train", "test")
+  ) %>%
+  dplyr::select(-Percent_Diabetes_2013, -County)
+
+northeast <- c("CT", "ME", "MA", "NH", "RI", "VT", "NJ", "NY", "PA")
+midwest   <- c("IL", "IN", "MI", "OH", "WI", "IA", "KS", "MN", "MO", "NE", "ND", "SD")
+south     <- c("DE", "FL", "GA", "MD", "NC", "SC", "VA", "DC", "WV", "AL", "KY", "MS", "TN", "AR", "LA", "OK", "TX")
+west      <- c("AZ", "CO", "ID", "MT", "NV", "NM", "UT", "WY", "AK", "CA", "HI", "OR", "WA")
+
+df <- df %>%
+  mutate(region = case_when(
+    State %in% northeast ~ "Northeast",
+    State %in% midwest   ~ "Midwest",
+    State %in% south     ~ "South",
+    State %in% west      ~ "West"
+  )) %>%
+  dplyr::select(-State)
+
+df_train <- df %>% filter(split_group == "train") %>%
+  dplyr::select(-split_group)
+
+# Fit QDA model
+qda_fit <- MASS::qda(diabetes01 ~ ., data = df_train)
+
+# Predict on full dataset
+full_df <- df %>%
+  mutate(
+    mass_qda_predict = predict(qda_fit, newdata = df)$class
+  )
+
+# Train MSE
+train_mse <- mean(
+  full_df$split_group == "train" &
+    full_df$diabetes01 != full_df$mass_qda_predict
+)
+train_mse
+
+# Test MSE
+test_mse <- mean(
+  full_df$split_group == "test" &
+    full_df$diabetes01 != full_df$mass_qda_predict
+)
+test_mse
+
+
+
+```
+
+
