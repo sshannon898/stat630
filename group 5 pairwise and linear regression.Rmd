@@ -249,6 +249,28 @@ coef(optimal_lasso)
 
 
 ```
+```{r}
+# logistic regression start 
+data_for_logistic<-dplyr::select(data,-State,-County,-Percent_Diabetes_2013)
+set.seed(1202)
+data_for_logistic$random<-runif(2883,0,1)
+logistic_train<-subset(data_for_logistic,data_for_logistic$random>0.1)
+logistic_test<-subset(data_for_logistic, data_for_logistic$random<0.1)
 
 
+model_log<-glm(highlowDM~.,data =logistic_train, family=binomial )
+step(model_log)
+
+BEST_STEP<-glm(formula = highlowDM ~ percent_household_low_access_2015 + 
+    Grocery_per_thousand_2011 + Specialty_store_per_thousand_2011 + 
+    SNAP_store_per_thousand_2012 + Full_service_restauraunt_per_thousand_2011 + 
+    Statewide_SNAP_participation_rate_2011 + Direct_farm_sales_per_capita_2012 + 
+    Farmers_markets_per_capita_2013 + Statewide_percent_obesity_2012 + 
+    Recreation_and_fitness_facilties_per_1000_2011 + percent_white_2010 + 
+    percent_hispanic_2010 + percent_asian_2010 + percent_pacific_islander_2010 + 
+    percent_65_and_older_2010 + percent_18_or_younger_2010 + 
+    Median_household_income_2015 + Persistant_poverty_counties_2010 + 
+    metronon_metro_county_2010 + population_loss_county_2010 + 
+    region, family = binomial, data = logistic_train)
+```
 
