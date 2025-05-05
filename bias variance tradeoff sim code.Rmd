@@ -1,0 +1,792 @@
+---
+title: "bias variance tradeoff regression"
+author: "Ryan Attwood"
+date: "`r Sys.Date()`"
+output: html_document
+---
+# test set
+
+
+set.seed(2)
+sim_mat <- mvtnorm::rmvnorm(nrow(data_for_var), sigma = cor(data_for_var))
+sim_unif <- pnorm(sim_mat)
+colnames(sim_unif)<-colnames(data_for_var)
+
+
+sim<-data_for_var
+
+sim$percent_black_2010 <- qgamma(sim_unif[,"percent_black_2010"], shape=0.4402158, rate = 0.05254412 )
+sim$Direct_farm_sales_per_capita_2012 <- qgamma(sim_unif[,"Direct_farm_sales_per_capita_2012"], shape=0.5355279 , rate = 0.06477432 )
+sim$percent_white_2010<-truncnorm::qtruncnorm(sim_unif[,"percent_white_2010"], a=0, b=100, mean=160, sd = 45)
+sim$percent_pacific_islander_2010<-qgamma(sim_unif[,"percent_pacific_islander_2010"], shape=0.2740278  , rate = 4.224056)
+sim$CSA_2013<-qgamma(sim_unif[,"CSA_2013"], shape=0.3002073  , rate = 2465.577  )
+
+st_fit <- sstdFit(data_for_var$percent_native_american_2010)
+sim$percent_native_american_2010 <- 
+  qsstd(
+    sim_unif[ , "percent_native_american_2010"], 
+    mean = st_fit$estimate["mean"], 
+    sd = st_fit$estimate["sd"], 
+    xi = st_fit$estimate["xi"], 
+    nu = st_fit$estimate["nu"]
+    )
+
+
+
+st_fit <- sstdFit(data_for_var$percent_asian_2010)
+sim$percent_asian_2010 <- 
+  qsstd(
+    sim_unif[ , "percent_asian_2010"], 
+    mean = st_fit$estimate["mean"], 
+    sd = st_fit$estimate["sd"], 
+    xi = st_fit$estimate["xi"], 
+    nu = st_fit$estimate["nu"]
+    )
+
+
+
+sim$Percent_Diabetes_2013<-qnorm(sim_unif[,"Percent_Diabetes_2013"], mean= 11.25921 ,sd=2.460515)
+sim$Population_Estimate_2013<-qnorm(sim_unif[,"Population_Estimate_2013"], mean=10.35833 , sd = 1.443346 )
+sim$percent_65_and_older_2010<-qnorm(sim_unif[,"percent_65_and_older_2010"], mean=15.92134 ,sd=4.100516 )
+sim$percent_18_or_younger_2010<-qnorm(sim_unif[,"percent_18_or_younger_2010"], mean=23.42614 ,sd=3.188879 )
+sim$Median_household_income_2015<-qnorm(sim_unif[,"Median_household_income_2015"], mean=10.76431  ,sd=0.2315657  )
+# a lot of liberties on this one 
+
+
+st_fit <- sstdFit(data_for_var$Satewide_food_insecurity_12_14)
+sim$Satewide_food_insecurity_12_14 <- 
+  qsstd(
+    sim_unif[ , "Satewide_food_insecurity_12_14"], 
+    mean = st_fit$estimate["mean"], 
+    sd = st_fit$estimate["sd"], 
+    xi = st_fit$estimate["xi"], 
+    nu = st_fit$estimate["nu"]
+    )
+
+sim$Fast_Food_per_thousand_2011<-truncnorm::qtruncnorm(sim_unif[,"Fast_Food_per_thousand_2011"], a=0,mean=0.5, sd=0.27)
+sim$percent_household_low_access_2015<-truncnorm::qtruncnorm(sim_unif[,"Fast_Food_per_thousand_2011"], a=0,b=100,mean=19, sd=18.25)
+
+st_fit <- sstdFit(data_for_var$Poverty_rate_2015)
+sim$Poverty_rate_2015 <- 
+  qsstd(
+    sim_unif[ , "Satewide_food_insecurity_12_14"], 
+    mean = st_fit$estimate["mean"], 
+    sd = st_fit$estimate["sd"], 
+    xi = st_fit$estimate["xi"], 
+    nu = st_fit$estimate["nu"]
+    )
+
+
+st_fit <- sstdFit(data_for_var$percent_hispanic_2010)
+sim$percent_hispanic_2010 <- 
+  qsstd(
+    sim_unif[ , "percent_hispanic_2010"], 
+    mean = st_fit$estimate["mean"], 
+    sd = st_fit$estimate["sd"], 
+    xi = st_fit$estimate["xi"], 
+    nu = st_fit$estimate["nu"]
+    )
+
+
+
+st_fit <- sstdFit(data_for_var$Full_service_restauraunt_per_thousand_2011)
+sim$Full_service_restauraunt_per_thousand_2011 <- 
+  qsstd(
+    sim_unif[ , "Full_service_restauraunt_per_thousand_2011"], 
+    mean = st_fit$estimate["mean"], 
+    sd = st_fit$estimate["sd"], 
+    xi = st_fit$estimate["xi"], 
+    nu = st_fit$estimate["nu"]
+    )
+
+st_fit <- sstdFit(data_for_var$Grocery_per_thousand_2011)
+T_Grocery_per_thousand_2011 <- 
+  qsstd(
+    sim_unif[ , "Grocery_per_thousand_2011"], 
+    mean = st_fit$estimate["mean"], 
+    sd = st_fit$estimate["sd"], 
+    xi = st_fit$estimate["xi"], 
+    nu = st_fit$estimate["nu"]
+    )
+
+
+st_fit <- sstdFit(data_for_var$Farmers_markets_per_capita_2013)
+sim$Farmers_markets_per_capita_2013 <- 
+  qsstd(
+    sim_unif[ , "Farmers_markets_per_capita_2013"], 
+    mean = st_fit$estimate["mean"], 
+    sd = st_fit$estimate["sd"], 
+    xi = st_fit$estimate["xi"], 
+    nu = st_fit$estimate["nu"]
+    )
+
+st_fit <- sstdFit(data_for_var$Statewide_percent_obesity_2012)
+sim$Statewide_percent_obesity_2012 <- 
+  qsstd(
+    sim_unif[ , "Statewide_percent_obesity_2012"], 
+    mean = st_fit$estimate["mean"], 
+    sd = st_fit$estimate["sd"], 
+    xi = st_fit$estimate["xi"], 
+    nu = st_fit$estimate["nu"]
+    )
+
+
+
+st_fit <- sstdFit(data_for_var$Statewide_percent_obesity_2012)
+sim$Statewide_percent_obesity_2012 <- 
+  qsstd(
+    sim_unif[ , "Statewide_percent_obesity_2012"], 
+    mean = st_fit$estimate["mean"], 
+    sd = 3.5, 
+    xi = st_fit$estimate["xi"], 
+    nu = st_fit$estimate["nu"]
+    )
+
+st_fit <- sstdFit(data_for_var$Specialty_store_per_thousand_2011)
+sim$Specialty_store_per_thousand_2011 <- 
+  qsstd(
+    sim_unif[ , "Specialty_store_per_thousand_2011"], 
+    mean = st_fit$estimate["mean"], 
+    sd = st_fit$estimate["sd"], 
+    xi = st_fit$estimate["xi"], 
+    nu = st_fit$estimate["nu"]
+    )
+
+
+# Observed probabilities:
+probs1 <- table(data_for_var$FOOD_BANKS_2018) / nrow(data_for_var)
+# Cumulative:
+cum_probs1 <- cumsum(probs1)
+# Add zero:
+cum_probs1 <- c(0, cum_probs1)
+# So we need to split the data:
+cut(x = sim_unif[ ,"FOOD_BANKS_2018"], breaks = cum_probs1)
+# Take it as the same integers from which we created the margin:
+sim$FOOD_BANKS_2018 <- as.integer(cut(x = sim_unif[ , "FOOD_BANKS_2018"], breaks = cum_probs1))
+# Check proportions:
+table(sim$FOOD_BANKS_2018)
+
+
+# Observed probabilities:
+probs2 <- table(data_for_var$Persistant_poverty_counties_2010) / nrow(data_for_var)
+# Cumulative:
+cum_probs2 <- cumsum(probs2)
+# Add zero:
+cum_probs2 <- c(0, cum_probs2)
+# So we need to split the data:
+cut(x = sim_unif[ ,"Persistant_poverty_counties_2010"], breaks = cum_probs2)
+# Take it as the same integers from which we created the margin:
+sim$Persistant_poverty_counties_2010 <- as.integer(cut(x = sim_unif[ , "Persistant_poverty_counties_2010"], breaks = cum_probs2))
+
+# Observed probabilities:
+probs3 <- table(data_for_var$metronon_metro_county_2010) / nrow(data_for_var)
+# Cumulative:
+cum_probs3 <- cumsum(probs3)
+# Add zero:
+cum_probs3 <- c(0, cum_probs3)
+# So we need to split the data:
+cut(x = sim_unif[ ,"metronon_metro_county_2010"], breaks = cum_probs3)
+# Take it as the same integers from which we created the margin:
+sim$metronon_metro_county_2010 <- as.integer(cut(x = sim_unif[ , "metronon_metro_county_2010"], breaks = cum_probs3))
+# Check proportions:
+
+# Observed probabilities:
+probs4 <- table(data_for_var$population_loss_county_2010) / nrow(data_for_var)
+# Cumulative:
+cum_probs4 <- cumsum(probs4)
+# Add zero:
+cum_probs4 <- c(0, cum_probs4)
+# So we need to split the data:
+cut(x = sim_unif[ ,"population_loss_county_2010"], breaks = cum_probs4)
+# Take it as the same integers from which we created the margin:
+sim$population_loss_county_2010 <- as.integer(cut(x = sim_unif[ , "population_loss_county_2010"], breaks = cum_probs4))
+# Check proportions:
+table(sim$population_loss_county_2010)
+table(data_for_var$population_loss_county_2010)
+sim$population_loss_county_2010 
+identical(sim$population_loss_county_2010,data_for_var$population_loss_county_2010)
+
+#Observed probabilities:
+probs5 <- table(data_for_var$region) / nrow(data_for_var)
+# Cumulative:
+cum_probs5 <- cumsum(probs5)
+# Add zero:
+cum_probs5 <- c(0, cum_probs5)
+# So we need to split the data:
+cut(x = sim_unif[ ,"region"], breaks = cum_probs5)
+# Take it as the same integers from which we created the margin:
+sim$region <- as.integer(cut(x = sim_unif[ , "region"], breaks = cum_probs5))
+# Check proportions:
+table(sim$region)
+table(data_for_var$region)
+
+
+#Observed probabilities:
+probs6 <- table(data_for_var$highlowDM) / nrow(data_for_var)
+# Cumulative:
+cum_probs6 <- cumsum(probs6)
+# Add zero:
+cum_probs6 <- c(0, cum_probs6)
+# So we need to split the data:
+cut(x = sim_unif[ ,"highlowDM"], breaks = cum_probs6)
+# Take it as the same integers from which we created the margin:
+sim$highlowDM <- as.integer(cut(x = sim_unif[ , "highlowDM"], breaks = cum_probs6))
+# Check proportions:
+table(sim$highlowDM)
+table(data_for_var$highlowDM)
+
+
+
+#dropping the variables I couldnt fit 
+drop<-c("Recreation_and_fitness_facilties_per_1000_2011","Percent_farmers_market_accepting_SNAP_2013", "Statewide_SNAP_participation_rate_2011","Supercenter_per_thousand_2011")
+sim_variables<-sim[,!(names(sim) %in% drop)]
+
+
+#setting"TEST" linear model
+sim_regression_test<-sim_variables[ ,-30]
+test_matrix<-model.matrix(Percent_Diabetes_2013~.,sim_regression_test,nvmax=28)
+true_model_test<-lm(sim_regression_test$Percent_Diabetes_2013~., data=sim_regression_test)
+true_F_X<-predict(true_model_test, data=sim_regression_test)
+```{r}
+# test set
+
+
+set.seed(2)
+sim_mat <- mvtnorm::rmvnorm(nrow(data_for_var), sigma = cor(data_for_var))
+sim_unif <- pnorm(sim_mat)
+colnames(sim_unif)<-colnames(data_for_var)
+
+
+sim<-data_for_var
+
+sim$percent_black_2010 <- qgamma(sim_unif[,"percent_black_2010"], shape=0.4402158, rate = 0.05254412 )
+sim$Direct_farm_sales_per_capita_2012 <- qgamma(sim_unif[,"Direct_farm_sales_per_capita_2012"], shape=0.5355279 , rate = 0.06477432 )
+sim$percent_white_2010<-truncnorm::qtruncnorm(sim_unif[,"percent_white_2010"], a=0, b=100, mean=160, sd = 45)
+sim$percent_pacific_islander_2010<-qgamma(sim_unif[,"percent_pacific_islander_2010"], shape=0.2740278  , rate = 4.224056)
+sim$CSA_2013<-qgamma(sim_unif[,"CSA_2013"], shape=0.3002073  , rate = 2465.577  )
+
+st_fit <- sstdFit(data_for_var$percent_native_american_2010)
+sim$percent_native_american_2010 <- 
+  qsstd(
+    sim_unif[ , "percent_native_american_2010"], 
+    mean = st_fit$estimate["mean"], 
+    sd = st_fit$estimate["sd"], 
+    xi = st_fit$estimate["xi"], 
+    nu = st_fit$estimate["nu"]
+    )
+
+
+
+st_fit <- sstdFit(data_for_var$percent_asian_2010)
+sim$percent_asian_2010 <- 
+  qsstd(
+    sim_unif[ , "percent_asian_2010"], 
+    mean = st_fit$estimate["mean"], 
+    sd = st_fit$estimate["sd"], 
+    xi = st_fit$estimate["xi"], 
+    nu = st_fit$estimate["nu"]
+    )
+
+
+
+sim$Percent_Diabetes_2013<-qnorm(sim_unif[,"Percent_Diabetes_2013"], mean= 11.25921 ,sd=2.460515)
+sim$Population_Estimate_2013<-qnorm(sim_unif[,"Population_Estimate_2013"], mean=10.35833 , sd = 1.443346 )
+sim$percent_65_and_older_2010<-qnorm(sim_unif[,"percent_65_and_older_2010"], mean=15.92134 ,sd=4.100516 )
+sim$percent_18_or_younger_2010<-qnorm(sim_unif[,"percent_18_or_younger_2010"], mean=23.42614 ,sd=3.188879 )
+sim$Median_household_income_2015<-qnorm(sim_unif[,"Median_household_income_2015"], mean=10.76431  ,sd=0.2315657  )
+# a lot of liberties on this one 
+
+
+st_fit <- sstdFit(data_for_var$Satewide_food_insecurity_12_14)
+sim$Satewide_food_insecurity_12_14 <- 
+  qsstd(
+    sim_unif[ , "Satewide_food_insecurity_12_14"], 
+    mean = st_fit$estimate["mean"], 
+    sd = st_fit$estimate["sd"], 
+    xi = st_fit$estimate["xi"], 
+    nu = st_fit$estimate["nu"]
+    )
+
+sim$Fast_Food_per_thousand_2011<-truncnorm::qtruncnorm(sim_unif[,"Fast_Food_per_thousand_2011"], a=0,mean=0.5, sd=0.27)
+sim$percent_household_low_access_2015<-truncnorm::qtruncnorm(sim_unif[,"Fast_Food_per_thousand_2011"], a=0,b=100,mean=19, sd=18.25)
+
+st_fit <- sstdFit(data_for_var$Poverty_rate_2015)
+sim$Poverty_rate_2015 <- 
+  qsstd(
+    sim_unif[ , "Satewide_food_insecurity_12_14"], 
+    mean = st_fit$estimate["mean"], 
+    sd = st_fit$estimate["sd"], 
+    xi = st_fit$estimate["xi"], 
+    nu = st_fit$estimate["nu"]
+    )
+
+
+st_fit <- sstdFit(data_for_var$percent_hispanic_2010)
+sim$percent_hispanic_2010 <- 
+  qsstd(
+    sim_unif[ , "percent_hispanic_2010"], 
+    mean = st_fit$estimate["mean"], 
+    sd = st_fit$estimate["sd"], 
+    xi = st_fit$estimate["xi"], 
+    nu = st_fit$estimate["nu"]
+    )
+
+
+
+st_fit <- sstdFit(data_for_var$Full_service_restauraunt_per_thousand_2011)
+sim$Full_service_restauraunt_per_thousand_2011 <- 
+  qsstd(
+    sim_unif[ , "Full_service_restauraunt_per_thousand_2011"], 
+    mean = st_fit$estimate["mean"], 
+    sd = st_fit$estimate["sd"], 
+    xi = st_fit$estimate["xi"], 
+    nu = st_fit$estimate["nu"]
+    )
+
+st_fit <- sstdFit(data_for_var$Grocery_per_thousand_2011)
+T_Grocery_per_thousand_2011 <- 
+  qsstd(
+    sim_unif[ , "Grocery_per_thousand_2011"], 
+    mean = st_fit$estimate["mean"], 
+    sd = st_fit$estimate["sd"], 
+    xi = st_fit$estimate["xi"], 
+    nu = st_fit$estimate["nu"]
+    )
+
+
+st_fit <- sstdFit(data_for_var$Farmers_markets_per_capita_2013)
+sim$Farmers_markets_per_capita_2013 <- 
+  qsstd(
+    sim_unif[ , "Farmers_markets_per_capita_2013"], 
+    mean = st_fit$estimate["mean"], 
+    sd = st_fit$estimate["sd"], 
+    xi = st_fit$estimate["xi"], 
+    nu = st_fit$estimate["nu"]
+    )
+
+st_fit <- sstdFit(data_for_var$Statewide_percent_obesity_2012)
+sim$Statewide_percent_obesity_2012 <- 
+  qsstd(
+    sim_unif[ , "Statewide_percent_obesity_2012"], 
+    mean = st_fit$estimate["mean"], 
+    sd = st_fit$estimate["sd"], 
+    xi = st_fit$estimate["xi"], 
+    nu = st_fit$estimate["nu"]
+    )
+
+
+
+st_fit <- sstdFit(data_for_var$Statewide_percent_obesity_2012)
+sim$Statewide_percent_obesity_2012 <- 
+  qsstd(
+    sim_unif[ , "Statewide_percent_obesity_2012"], 
+    mean = st_fit$estimate["mean"], 
+    sd = 3.5, 
+    xi = st_fit$estimate["xi"], 
+    nu = st_fit$estimate["nu"]
+    )
+
+st_fit <- sstdFit(data_for_var$Specialty_store_per_thousand_2011)
+sim$Specialty_store_per_thousand_2011 <- 
+  qsstd(
+    sim_unif[ , "Specialty_store_per_thousand_2011"], 
+    mean = st_fit$estimate["mean"], 
+    sd = st_fit$estimate["sd"], 
+    xi = st_fit$estimate["xi"], 
+    nu = st_fit$estimate["nu"]
+    )
+
+
+# Observed probabilities:
+probs1 <- table(data_for_var$FOOD_BANKS_2018) / nrow(data_for_var)
+# Cumulative:
+cum_probs1 <- cumsum(probs1)
+# Add zero:
+cum_probs1 <- c(0, cum_probs1)
+# So we need to split the data:
+cut(x = sim_unif[ ,"FOOD_BANKS_2018"], breaks = cum_probs1)
+# Take it as the same integers from which we created the margin:
+sim$FOOD_BANKS_2018 <- as.integer(cut(x = sim_unif[ , "FOOD_BANKS_2018"], breaks = cum_probs1))
+# Check proportions:
+table(sim$FOOD_BANKS_2018)
+
+
+# Observed probabilities:
+probs2 <- table(data_for_var$Persistant_poverty_counties_2010) / nrow(data_for_var)
+# Cumulative:
+cum_probs2 <- cumsum(probs2)
+# Add zero:
+cum_probs2 <- c(0, cum_probs2)
+# So we need to split the data:
+cut(x = sim_unif[ ,"Persistant_poverty_counties_2010"], breaks = cum_probs2)
+# Take it as the same integers from which we created the margin:
+sim$Persistant_poverty_counties_2010 <- as.integer(cut(x = sim_unif[ , "Persistant_poverty_counties_2010"], breaks = cum_probs2))
+
+# Observed probabilities:
+probs3 <- table(data_for_var$metronon_metro_county_2010) / nrow(data_for_var)
+# Cumulative:
+cum_probs3 <- cumsum(probs3)
+# Add zero:
+cum_probs3 <- c(0, cum_probs3)
+# So we need to split the data:
+cut(x = sim_unif[ ,"metronon_metro_county_2010"], breaks = cum_probs3)
+# Take it as the same integers from which we created the margin:
+sim$metronon_metro_county_2010 <- as.integer(cut(x = sim_unif[ , "metronon_metro_county_2010"], breaks = cum_probs3))
+# Check proportions:
+
+# Observed probabilities:
+probs4 <- table(data_for_var$population_loss_county_2010) / nrow(data_for_var)
+# Cumulative:
+cum_probs4 <- cumsum(probs4)
+# Add zero:
+cum_probs4 <- c(0, cum_probs4)
+# So we need to split the data:
+cut(x = sim_unif[ ,"population_loss_county_2010"], breaks = cum_probs4)
+# Take it as the same integers from which we created the margin:
+sim$population_loss_county_2010 <- as.integer(cut(x = sim_unif[ , "population_loss_county_2010"], breaks = cum_probs4))
+# Check proportions:
+table(sim$population_loss_county_2010)
+table(data_for_var$population_loss_county_2010)
+sim$population_loss_county_2010 
+identical(sim$population_loss_county_2010,data_for_var$population_loss_county_2010)
+
+#Observed probabilities:
+probs5 <- table(data_for_var$region) / nrow(data_for_var)
+# Cumulative:
+cum_probs5 <- cumsum(probs5)
+# Add zero:
+cum_probs5 <- c(0, cum_probs5)
+# So we need to split the data:
+cut(x = sim_unif[ ,"region"], breaks = cum_probs5)
+# Take it as the same integers from which we created the margin:
+sim$region <- as.integer(cut(x = sim_unif[ , "region"], breaks = cum_probs5))
+# Check proportions:
+table(sim$region)
+table(data_for_var$region)
+
+
+#Observed probabilities:
+probs6 <- table(data_for_var$highlowDM) / nrow(data_for_var)
+# Cumulative:
+cum_probs6 <- cumsum(probs6)
+# Add zero:
+cum_probs6 <- c(0, cum_probs6)
+# So we need to split the data:
+cut(x = sim_unif[ ,"highlowDM"], breaks = cum_probs6)
+# Take it as the same integers from which we created the margin:
+sim$highlowDM <- as.integer(cut(x = sim_unif[ , "highlowDM"], breaks = cum_probs6))
+# Check proportions:
+table(sim$highlowDM)
+table(data_for_var$highlowDM)
+
+
+
+#dropping the variables I couldnt fit 
+drop<-c("Recreation_and_fitness_facilties_per_1000_2011","Percent_farmers_market_accepting_SNAP_2013", "Statewide_SNAP_participation_rate_2011","Supercenter_per_thousand_2011")
+sim_variables<-sim[,!(names(sim) %in% drop)]
+
+
+#setting"TEST" linear model
+sim_regression_test<-sim_variables[ ,-30]
+test_matrix<-model.matrix(Percent_Diabetes_2013~.,sim_regression_test,nvmax=28)
+true_model_test<-lm(sim_regression_test$Percent_Diabetes_2013~., data=sim_regression_test)
+true_F_X<-predict(true_model_test, data=sim_regression_test)
+```
+
+
+
+```{r}
+library(leaps)
+library(tidyverse)
+
+pred_test<-NULL
+predictions <- NULL
+M<-100
+df_seq<-seq(1:28)
+for (m in 1:M)
+{
+sim_mat <- mvtnorm::rmvnorm(nrow(data_for_var), sigma = cor(data_for_var))
+sim_unif <- pnorm(sim_mat)
+colnames(sim_unif)<-colnames(data_for_var)
+
+
+sim<-data_for_var
+
+sim$percent_black_2010 <- qgamma(sim_unif[,"percent_black_2010"], shape=0.4402158, rate = 0.05254412 )
+sim$Direct_farm_sales_per_capita_2012 <- qgamma(sim_unif[,"Direct_farm_sales_per_capita_2012"], shape=0.5355279 , rate = 0.06477432 )
+sim$percent_white_2010<-truncnorm::qtruncnorm(sim_unif[,"percent_white_2010"], a=0, b=100, mean=160, sd = 45)
+sim$percent_pacific_islander_2010<-qgamma(sim_unif[,"percent_pacific_islander_2010"], shape=0.2740278  , rate = 4.224056)
+sim$CSA_2013<-qgamma(sim_unif[,"CSA_2013"], shape=0.3002073  , rate = 2465.577  )
+
+st_fit <- sstdFit(data_for_var$percent_native_american_2010)
+sim$percent_native_american_2010 <- 
+  qsstd(
+    sim_unif[ , "percent_native_american_2010"], 
+    mean = st_fit$estimate["mean"], 
+    sd = st_fit$estimate["sd"], 
+    xi = st_fit$estimate["xi"], 
+    nu = st_fit$estimate["nu"]
+    )
+
+
+
+st_fit <- sstdFit(data_for_var$percent_asian_2010)
+sim$percent_asian_2010 <- 
+  qsstd(
+    sim_unif[ , "percent_asian_2010"], 
+    mean = st_fit$estimate["mean"], 
+    sd = st_fit$estimate["sd"], 
+    xi = st_fit$estimate["xi"], 
+    nu = st_fit$estimate["nu"]
+    )
+
+
+
+sim$Percent_Diabetes_2013<-qnorm(sim_unif[,"Percent_Diabetes_2013"], mean= 11.25921 ,sd=2.460515)
+sim$Population_Estimate_2013<-qnorm(sim_unif[,"Population_Estimate_2013"], mean=10.35833 , sd = 1.443346 )
+sim$percent_65_and_older_2010<-qnorm(sim_unif[,"percent_65_and_older_2010"], mean=15.92134 ,sd=4.100516 )
+sim$percent_18_or_younger_2010<-qnorm(sim_unif[,"percent_18_or_younger_2010"], mean=23.42614 ,sd=3.188879 )
+sim$Median_household_income_2015<-qnorm(sim_unif[,"Median_household_income_2015"], mean=10.76431  ,sd=0.2315657  )
+# a lot of liberties on this one 
+
+
+st_fit <- sstdFit(data_for_var$Satewide_food_insecurity_12_14)
+sim$Satewide_food_insecurity_12_14 <- 
+  qsstd(
+    sim_unif[ , "Satewide_food_insecurity_12_14"], 
+    mean = st_fit$estimate["mean"], 
+    sd = st_fit$estimate["sd"], 
+    xi = st_fit$estimate["xi"], 
+    nu = st_fit$estimate["nu"]
+    )
+
+sim$Fast_Food_per_thousand_2011<-truncnorm::qtruncnorm(sim_unif[,"Fast_Food_per_thousand_2011"], a=0,mean=0.5, sd=0.27)
+sim$percent_household_low_access_2015<-truncnorm::qtruncnorm(sim_unif[,"Fast_Food_per_thousand_2011"], a=0,b=100,mean=19, sd=18.25)
+
+st_fit <- sstdFit(data_for_var$Poverty_rate_2015)
+sim$Poverty_rate_2015 <- 
+  qsstd(
+    sim_unif[ , "Satewide_food_insecurity_12_14"], 
+    mean = st_fit$estimate["mean"], 
+    sd = st_fit$estimate["sd"], 
+    xi = st_fit$estimate["xi"], 
+    nu = st_fit$estimate["nu"]
+    )
+
+
+st_fit <- sstdFit(data_for_var$percent_hispanic_2010)
+sim$percent_hispanic_2010 <- 
+  qsstd(
+    sim_unif[ , "percent_hispanic_2010"], 
+    mean = st_fit$estimate["mean"], 
+    sd = st_fit$estimate["sd"], 
+    xi = st_fit$estimate["xi"], 
+    nu = st_fit$estimate["nu"]
+    )
+
+
+
+st_fit <- sstdFit(data_for_var$Full_service_restauraunt_per_thousand_2011)
+sim$Full_service_restauraunt_per_thousand_2011 <- 
+  qsstd(
+    sim_unif[ , "Full_service_restauraunt_per_thousand_2011"], 
+    mean = st_fit$estimate["mean"], 
+    sd = st_fit$estimate["sd"], 
+    xi = st_fit$estimate["xi"], 
+    nu = st_fit$estimate["nu"]
+    )
+
+st_fit <- sstdFit(data_for_var$Grocery_per_thousand_2011)
+T_Grocery_per_thousand_2011 <- 
+  qsstd(
+    sim_unif[ , "Grocery_per_thousand_2011"], 
+    mean = st_fit$estimate["mean"], 
+    sd = st_fit$estimate["sd"], 
+    xi = st_fit$estimate["xi"], 
+    nu = st_fit$estimate["nu"]
+    )
+
+
+st_fit <- sstdFit(data_for_var$Farmers_markets_per_capita_2013)
+sim$Farmers_markets_per_capita_2013 <- 
+  qsstd(
+    sim_unif[ , "Farmers_markets_per_capita_2013"], 
+    mean = st_fit$estimate["mean"], 
+    sd = st_fit$estimate["sd"], 
+    xi = st_fit$estimate["xi"], 
+    nu = st_fit$estimate["nu"]
+    )
+
+st_fit <- sstdFit(data_for_var$Statewide_percent_obesity_2012)
+sim$Statewide_percent_obesity_2012 <- 
+  qsstd(
+    sim_unif[ , "Statewide_percent_obesity_2012"], 
+    mean = st_fit$estimate["mean"], 
+    sd = st_fit$estimate["sd"], 
+    xi = st_fit$estimate["xi"], 
+    nu = st_fit$estimate["nu"]
+    )
+
+
+
+st_fit <- sstdFit(data_for_var$Statewide_percent_obesity_2012)
+sim$Statewide_percent_obesity_2012 <- 
+  qsstd(
+    sim_unif[ , "Statewide_percent_obesity_2012"], 
+    mean = st_fit$estimate["mean"], 
+    sd = 3.5, 
+    xi = st_fit$estimate["xi"], 
+    nu = st_fit$estimate["nu"]
+    )
+
+st_fit <- sstdFit(data_for_var$Specialty_store_per_thousand_2011)
+sim$Specialty_store_per_thousand_2011 <- 
+  qsstd(
+    sim_unif[ , "Specialty_store_per_thousand_2011"], 
+    mean = st_fit$estimate["mean"], 
+    sd = st_fit$estimate["sd"], 
+    xi = st_fit$estimate["xi"], 
+    nu = st_fit$estimate["nu"]
+    )
+
+
+# Observed probabilities:
+probs1 <- table(data_for_var$FOOD_BANKS_2018) / nrow(data_for_var)
+# Cumulative:
+cum_probs1 <- cumsum(probs1)
+# Add zero:
+cum_probs1 <- c(0, cum_probs1)
+# So we need to split the data:
+cut(x = sim_unif[ ,"FOOD_BANKS_2018"], breaks = cum_probs1)
+# Take it as the same integers from which we created the margin:
+sim$FOOD_BANKS_2018 <- as.integer(cut(x = sim_unif[ , "FOOD_BANKS_2018"], breaks = cum_probs1))
+# Check proportions:
+table(sim$FOOD_BANKS_2018)
+
+
+# Observed probabilities:
+probs2 <- table(data_for_var$Persistant_poverty_counties_2010) / nrow(data_for_var)
+# Cumulative:
+cum_probs2 <- cumsum(probs2)
+# Add zero:
+cum_probs2 <- c(0, cum_probs2)
+# So we need to split the data:
+cut(x = sim_unif[ ,"Persistant_poverty_counties_2010"], breaks = cum_probs2)
+# Take it as the same integers from which we created the margin:
+sim$Persistant_poverty_counties_2010 <- as.integer(cut(x = sim_unif[ , "Persistant_poverty_counties_2010"], breaks = cum_probs2))
+
+# Observed probabilities:
+probs3 <- table(data_for_var$metronon_metro_county_2010) / nrow(data_for_var)
+# Cumulative:
+cum_probs3 <- cumsum(probs3)
+# Add zero:
+cum_probs3 <- c(0, cum_probs3)
+# So we need to split the data:
+cut(x = sim_unif[ ,"metronon_metro_county_2010"], breaks = cum_probs3)
+# Take it as the same integers from which we created the margin:
+sim$metronon_metro_county_2010 <- as.integer(cut(x = sim_unif[ , "metronon_metro_county_2010"], breaks = cum_probs3))
+# Check proportions:
+
+# Observed probabilities:
+probs4 <- table(data_for_var$population_loss_county_2010) / nrow(data_for_var)
+# Cumulative:
+cum_probs4 <- cumsum(probs4)
+# Add zero:
+cum_probs4 <- c(0, cum_probs4)
+# So we need to split the data:
+cut(x = sim_unif[ ,"population_loss_county_2010"], breaks = cum_probs4)
+# Take it as the same integers from which we created the margin:
+sim$population_loss_county_2010 <- as.integer(cut(x = sim_unif[ , "population_loss_county_2010"], breaks = cum_probs4))
+# Check proportions:
+table(sim$population_loss_county_2010)
+table(data_for_var$population_loss_county_2010)
+sim$population_loss_county_2010 
+identical(sim$population_loss_county_2010,data_for_var$population_loss_county_2010)
+
+#Observed probabilities:
+probs5 <- table(data_for_var$region) / nrow(data_for_var)
+# Cumulative:
+cum_probs5 <- cumsum(probs5)
+# Add zero:
+cum_probs5 <- c(0, cum_probs5)
+# So we need to split the data:
+cut(x = sim_unif[ ,"region"], breaks = cum_probs5)
+# Take it as the same integers from which we created the margin:
+sim$region <- as.integer(cut(x = sim_unif[ , "region"], breaks = cum_probs5))
+# Check proportions:
+table(sim$region)
+table(data_for_var$region)
+
+
+#Observed probabilities:
+probs6 <- table(data_for_var$highlowDM) / nrow(data_for_var)
+# Cumulative:
+cum_probs6 <- cumsum(probs6)
+# Add zero:
+cum_probs6 <- c(0, cum_probs6)
+# So we need to split the data:
+cut(x = sim_unif[ ,"highlowDM"], breaks = cum_probs6)
+# Take it as the same integers from which we created the margin:
+sim$highlowDM <- as.integer(cut(x = sim_unif[ , "highlowDM"], breaks = cum_probs6))
+# Check proportions:
+table(sim$highlowDM)
+table(data_for_var$highlowDM)
+
+
+
+#dropping the variables I couldnt fit 
+drop<-c("Recreation_and_fitness_facilties_per_1000_2011","Percent_farmers_market_accepting_SNAP_2013", "Statewide_SNAP_participation_rate_2011","Supercenter_per_thousand_2011")
+sim_variables<-sim[,!(names(sim) %in% drop)]
+
+
+sim_regression_train<-sim_variables[ ,-30]
+train_matrix<-model.matrix(Percent_Diabetes_2013~.,sim_regression_train,nvmax=28)
+regression_best <- regsubsets(Percent_Diabetes_2013 ~., sim_regression_train,nvmax =28, method = "forward")
+ 
+
+for (i in 1:length(df_seq)) {
+    
+   coef <- coef(regression_best, id = i)
+    pred_test$pred_f_x <- (test_matrix[ ,names(coef)] %*% coef)
+    pred_test$true_f_x = true_F_X
+    pred_test$true_y = sim_regression_test$Percent_Diabetes_2013
+    pred_test$test_obs_idx = seq(1:2883)
+    pred_test$m = m
+    pred_test$df= df_seq[i]
+    predictions <- bind_rows(predictions, pred_test)
+  }
+
+
+
+}
+
+bias_var_MSE <-
+  predictions %>%
+  group_by(test_obs_idx, df) %>%
+  summarize(
+    pt_wise_bias_sq = (mean(pred_f_x - true_f_x)) ^ 2,
+    pt_wise_var = mean( (pred_f_x - mean(pred_f_x)) ^ 2 ),
+    pt_wise_MSEE = mean( (pred_f_x - true_f_x) ^ 2 ),
+    pt_wise_MSEP = mean( (pred_f_x - true_y) ^ 2 )
+  ) %>%
+  group_by(df) %>%
+  summarize(
+    bias_sq = mean(pt_wise_bias_sq),
+    var = mean(pt_wise_var),
+    MSEE = mean(pt_wise_MSEE),
+    MSEP = mean(pt_wise_MSEP)
+  )
+
+(g <-
+  bias_var_MSE %>%
+  pivot_longer(c(bias_sq, var, MSEE, MSEP)) %>% 
+  ggplot() +
+  geom_line(aes(x = df, y = value, color = name)) +
+  # geom_hline(yintercept = est_var_epsilon, lty = 2) +
+  theme_bw() +
+  xlab("Flexibility") +
+  ylab("Mean Squared Error") +
+  theme(legend.title = element_blank()))
+
+
+```
