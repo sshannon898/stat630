@@ -1,0 +1,169 @@
+---
+title: "Tree methods"
+author: "Ryan Attwood"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r}
+library(readxl)
+data<-read_excel("C:/Users/ryana/Desktop/diabetes and predictors 4-19.xlsx")
+# removing one county without diabetes info 
+removal<-which(is.na(data$`Percent_Diabetes_2013`))
+data<-data[-removal, ]
+
+#removing county with missing population estimate
+removal<-which(is.na.data.frame(data[,4]))
+data<-data[-removal, ]
+
+#removing all low access counties with NA
+removal<-which(is.na.data.frame(data[,5]))
+data<-data[-removal, ]
+
+
+#removing direct farm sales counties with NA
+removal<-which(is.na.data.frame(data[,16]))
+data<-data[-removal, ]
+
+
+
+
+#need to normalize CSA count 
+data$CSA_2013 <- (data$CSA_2013/data$Population_Estimate_2013)
+
+
+#Binary to factor 
+data$`FOOD_BANKS_2018`<-as.factor(data$`FOOD_BANKS_2018`)
+data$`Persistant_poverty_counties_2010`<-as.factor(data$`Persistant_poverty_counties_2010`)
+data$`metronon_metro_county_2010`<-as.factor(data$`metronon_metro_county_2010`)
+data$`population_loss_county_2010` <-as.factor(data$`population_loss_county_2010`)
+
+#State to region 
+
+
+northeast<-c("ME","NH","MA","CT","RI","NY","PA","NJ")
+south<-c("DC","MD","DE","WV","KY","TN","VA","NC","SC","GA","FL","AL","MS","LA","AR","OK","TX")
+midwest<-c("OH","IN","MI","IL","WI","MO","IA","MN","ND","SD","NE","KS")
+
+data$region<-0
+for (i in 1:nrow(data)){
+if (data$State[i] %in% northeast){
+  data$region[i] = "Northeast"
+}
+  else if (data$State[i] %in% south){
+  data$region[i] = "South"}
+  else if (data$State[i] %in% midwest){
+    data$region[i] = "Midwest"
+  }
+}
+for (i in 1:nrow(data)){
+  if (data$region[i]==0)
+    data$region[i]<-"West"
+}   
+
+
+#change population and oncome to log
+data$Population_Estimate_2013<-log(data$Population_Estimate_2013)
+data$Median_household_income_2015<-log(data$Median_household_income_2015)
+
+
+
+
+#create binary outcome 
+median_Diabetes<-median(data$`Percent_Diabetes_2013`)
+data$highlowDM<-ifelse(data$`Percent_Diabetes_2013`> median_Diabetes,1,0)
+
+which(is.na.data.frame(data[,4]))
+
+
+
+```
+
+```{r}
+#test and train for regression 
+set.seed(1202)
+data_for_regression$random<-runif(2883,0,1)
+regression_train<-subset(data_for_regression,data_for_regression$random>0.1)
+regression_test<-subset(data_for_regression, data_for_regression$random<0.1)
+
+regression_test<-regression_test[,-34]
+regression_train<-regression_train[ ,-34]
+
+```
+
+
+```{r}
+library(tree)
+
+
+#tree with prunning 
+tree_DM<-tree(regression_train$Percent_Diabetes_2013~., data = regression_train, control = (tree.control(nrow(regression_train),mincut = 5, minsize = 10, mindev =0.003 )))
+plot(tree_DM)
+text(tree_DM)
+tree_predict<-predict(tree_DM, newdata = regression_test)
+MSE_TREE<-(mean((tree_predict - regression_test$Percent_Diabetes_2013)^2))
+cv_tree <- cv.tree(tree_DM)
+view(cv_tree)
+
+#bagging
+library(randomForest)
+n_trees <- 300
+p <- ncol(regression_train) - 1
+
+
+
+set.seed(1)
+bag_DM <- 
+  randomForest(
+    Percent_Diabetes_2013 ~ ., 
+    data = regression_train, 
+    ntree = n_trees, 
+    mtry = p,            # m = p for bagging.
+    keep.forest = TRUE,  # not necessary, using to compute test errors for all trees.
+    importance = TRUE    # not necessary, compute importance of variables.
+    )
+bag_DM_predict <- predict(bag_DM , newdata =  regression_test)
+Mean_sq_DM_bag<-mean((bag_DM_predict-regression_test$Percent_Diabetes_2013)^2)
+
+
+bag_DM$importance
+
+set.seed(1)
+rf_DM <- 
+  randomForest(Percent_Diabetes_2013 ~ ., data =regression_train, ntree = n_trees, keep.forest = TRUE)
+rf_DM_predict <- predict(rf_DM, newdata=regression_test)
+Mean_sq_DM_RF<-mean((rf_DM_predict-regression_test$Percent_Diabetes_2013)^2)
+
+rf_DM$importance
+```
+
+```{r}
+regression_train$region[regression_train$region=="West"]<-as.integer(1)
+regression_train$region[regression_train$region=="Northeast"]<-as.integer(2)
+regression_train$region[regression_train$region=="Midwest"]<-as.integer(3)
+regression_train$region[regression_train$region=="South"]<-as.integer(4)
+
+regression_test$region[regression_test$region=="West"]<-as.integer(1)
+regression_test$region[regression_test$region=="Northeast"]<-as.integer(2)
+regression_test$region[regression_test$region=="Midwest"]<-as.integer(3)
+regression_test$region[regression_test$region=="South"]<-as.integer(4)
+
+regression_test$region<-as.integer(regression_test$region)
+regression_train$region<-as.integer(regression_train$region)
+
+
+
+
+
+library(gbm)
+boost_DM<-gbm(regression_train$Percent_Diabetes_2013~ ., data = regression_train, n.trees = 100000,shrinkage = 0.001, interaction.depth = 2)
+
+test <- 
+  colMeans((predict(boost_DM, newdata = regression_test, n.trees=1:100000) - regression_test$Percent_Diabetes_2013) ^ 2)
+min(test)
+plot(test)
+
+summary(boost_DM)
+
+```
+
