@@ -1,0 +1,282 @@
+---
+title: "Final project - neural networks (Duc)"
+author: "Duc Nguyen"
+date: "2025-05-10"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+Sys.setenv(TF_CPP_MIN_LOG_LEVEL = "2")  # 0 = all, 1 = INFO, 2 = WARNING, 3 = ERROR only
+```
+
+## 🔹 Part 1: Load Required Libraries
+
+We begin by loading necessary R libraries for data manipulation, preprocessing, modeling using Keras, and evaluation/visualization.
+
+```{r}
+library(readxl)     # Read Excel files
+library(dplyr)      # Data wrangling
+library(keras)      # Neural network modeling
+library(caret)      # Data preprocessing and splitting
+library(ggplot2)    # Visualization
+library(tensorflow) # For setting seed in TF backend
+```
+
+## 🔹 Part 2: Load the Dataset
+
+We load the agreed-upon dataset shared among team members. It contains diabetes prevalence and various demographic and environmental predictors.
+
+```{r}
+data <- read_excel("C:/1. Học tập/Spring 2025/4. Stat 630/Final project/After teammate change/diabetes and predictors 4-19.xlsx")
+```
+
+## 🔹 Part 3: Clean and Prepare the Dataset
+
+We remove rows with missing values and exclude non-predictor columns (`State`, `County`, and the target variable). We also ensure all predictor values are numeric.
+
+```{r}
+data_clean <- data %>% na.omit()
+
+# Define the outcome
+y <- data_clean$Percent_Diabetes_2013
+
+# Remove non-numeric or non-predictor columns
+predictors <- data_clean %>%
+  select(-State, -County, -Percent_Diabetes_2013)
+
+predictors <- as.data.frame(lapply(predictors, as.numeric))
+```
+
+## 🔹 Part 4: Normalize the Predictors
+
+Neural networks are sensitive to the scale of input variables. We standardize all predictors to have mean 0 and standard deviation 1 using `caret::preProcess`
+
+```{r}
+pre_proc <- preProcess(predictors, method = c("center", "scale"))
+x <- predict(pre_proc, predictors)
+
+# Convert to matrix for Keras
+x <- as.matrix(x)
+y <- as.numeric(y)
+```
+
+## 🔹 Part 5: Split into Training and Testing Sets
+
+We split the data into training and test sets (80% training, 20% test) to evaluate model generalization.
+
+```{r}
+set.seed(123)
+train_index <- createDataPartition(y, p = 0.8, list = FALSE)
+x_train <- x[train_index, ]
+x_test <- x[-train_index, ]
+y_train <- y[train_index]
+y_test <- y[-train_index]
+```
+
+## 🔒 📌 Part 5.5: Set Seed for Reproducibility
+
+To ensure that the neural network produces consistent results across different runs, we fix the random seed across R, NumPy, and TensorFlow using `use_session_with_seed().`
+
+```{r}
+set.seed(123)
+tensorflow::set_random_seed(123)
+```
+
+## 🔹 Part 6: Define the Neural Network Architecture
+
+We define a dense feedforward neural network with two hidden layers using ReLU activations and dropout for regularization. The output layer uses linear activation for regression
+
+```{r}
+model <- keras_model_sequential() %>%
+  layer_dense(units = 256, activation = "relu", input_shape = ncol(x_train)) %>%
+  layer_dropout(rate = 0.4) %>%
+  layer_dense(units = 128, activation = "relu") %>%
+  layer_dropout(rate = 0.3) %>%
+  layer_dense(units = 1, activation = "linear")  # For regression
+```
+
+## 🔹 Part 7: Compile the Model
+
+We compile the model with mean squared error loss and RMSprop optimizer, appropriate for regression problems.
+
+```{r}
+model %>% compile(
+  loss = "mean_squared_error",
+  optimizer = optimizer_rmsprop(),
+  metrics = list("mean_absolute_error")
+)
+```
+
+## 🔹 Part 8: Train the Model
+
+We train the model on the training data for 50 epochs with a batch size of 32. A validation split of 20% monitors generalization performance during training.
+
+```{r}
+history <- model %>% fit(
+  x_train, y_train,
+  epochs = 50,
+  batch_size = 32,
+  validation_split = 0.2
+)
+
+```
+
+### Training Curve Insight
+
+-   Both **training and validation loss (MSE)** dropped sharply in the first 10 epochs and stabilized around epoch 25–30.
+
+<!-- -->
+
+-    Validation **MAE decreased to around 1.0**, showing strong predictive performance.
+
+<!-- -->
+
+-    No overfitting: validation loss did **not increase**, and stayed close to training loss.
+
+-   👉 **Conclusion:** Our neural network is learning a solid generalizable function without overfitting.
+
+### Final Performance:
+
+-   **Final MAE on validation set**: \~**1.0**
+
+<!-- -->
+
+-    This means the model, on average, predicts diabetes prevalence within ±1 percentage point.
+
+<!-- -->
+
+-    Given your dataset includes socioeconomic and food access variables, this is **reasonably strong** predictive performance.
+
+### Summary
+
+The neural network trained over 50 epochs and achieved a final mean absolute error of approximately **1.0** on the validation set.
+The training and validation losses both showed strong and stable convergence, indicating that the model generalized well without overfitting.
+Although neural networks are complex and less interpretable than linear models, the consistent performance suggests that the model successfully captured nonlinear relationships between diabetes prevalence and environmental/socioeconomic predictors.
+
+## 🔹 Part 9: Evaluate the Model
+
+After training, we evaluate the model’s performance on the test data using mean absolute error (MAE). This gives us an estimate of how far off the model's predictions are from the actual diabetes rates on average.
+
+```{r}
+score <- model %>% evaluate(x_test, y_test)
+cat("Final Test MAE:", score["mean_absolute_error"], "\n")
+```
+
+### Final MAE on Test set: 1.04
+
+-   This means the neural network predicts county-level diabetes rates within about **±1.04 percentage points** on average.
+
+-   The performance is **consistent with your validation MAE (\~1.0)** from Part 8 → **no overfitting** or performance collapse.
+
+### What this tells us:
+
+-   The model **generalizes well** to unseen data.
+
+-   It is **stable**, having similar performance across training, validation, and test.
+
+-   This confirms that the neural network learned **true signal** from the data, not noise.
+
+### What to write in report:
+
+On the held-out test set, the neural network achieved a mean absolute error (MAE) of approximately **1.04**, confirming that the model’s performance generalized well beyond the training data.\
+
+This consistency with the validation MAE (\~1.0) further demonstrates that the model did not overfit and maintained accuracy across unseen samples.\
+
+These results support the neural network as a reliable method for predicting diabetes rates based on food environment and socioeconomic indicators.
+
+## 🔹 Part 10: Visualize Training Progress
+
+To analyze how the model performed over epochs, we plot the training and validation MAE. This helps detect overfitting (if validation error increases while training error decreases) or underfitting (if both errors remain high).
+
+```{r}
+plot(history)
+```
+
+### Top plot (loss)
+
+-   Both training and validation loss steadily decrease, then plateau.
+
+-   No signs of overfitting – Validation loss doesn't increase or diverge.
+
+### Bottom plot (Mean Absolute Error):
+
+-   MAE decreases smootly for both training and validation.
+
+-   By epoch \~15–20, the improvement rate slows, suggesting that 20–30 epochs would’ve been enough (50 is fine too).
+
+### 🔍 Key Takeaways
+
+-   The neural network **converged properly.**
+
+-   There's **no sign of underfitting** (both curves start high).
+
+-   There’s **no sign of overfitting** (training ≈ validation error).
+
+-   Training performance is stable and generalizable.
+
+### 🧾 Suggested Write-up for Your Report
+
+The training progress plot shows that both loss and mean absolute error decreased consistently over the 50 epochs for both the training and validation sets.\
+
+The validation curve closely followed the training curve without divergence, which suggests the model generalized well and did not overfit.\
+
+This confirms that the model learned stable patterns in the data and converged within the given training window.
+
+## 🔹 Part 11: Plot Predicted vs Actual Diabetes Rates
+
+Finally, we compare the predicted values against the actual diabetes rates on the test set. Ideally, the points should align closely along the diagonal red dashed line, indicating accurate predictions.
+
+```{r}
+predictions <- model %>% predict(x_test)
+
+results <- data.frame(
+  Actual = y_test,
+  Predicted = as.numeric(predictions)
+)
+
+ggplot(results, aes(x = Actual, y = Predicted)) +
+  geom_point(alpha = 0.6) +
+  geom_abline(color = "red", linetype = "dashed") +
+  labs(
+    title = "Neural Network Predictions vs Actual Diabetes Rates",
+    x = "Actual Diabetes (%)",
+    y = "Predicted Diabetes (%)"
+  )
+```
+
+### 📈 What the Plot Shows:
+
+-   Most points cluster tightly around the **diagonal red dashed line**, which represents **perfect predictions**.
+
+-   The model accurately captures diabetes rates in the **mid-range (7%–14%)**, where most data points fall.
+
+-   Slight underprediction at the high end (15%+) and slight overprediction at the low end — **common** in regression models due to limited data in extremes.
+
+### 🧠 Interpretation
+
+This plot shows the neural network:
+
+-   **Learned a strong relationship** between predictors and diabetes rates.
+
+-   **Generalizes well**, as predictions don’t deviate wildly.
+
+-   Makes **residual errors that appear randomly distributed**, which is desirable.
+
+### 📝 Suggested Write-up for Your Report
+
+The predicted vs. actual plot shows that the neural network closely tracks the true diabetes rates across the test set.\
+
+Most predictions fall near the identity line, indicating accurate performance, particularly in the most common range of 7–14%.\
+
+The model slightly underestimates high diabetes rates and overestimates low ones, but this pattern is modest and expected in real-world health data.\
+
+Overall, this visualization confirms that the model captured meaningful structure in the data and achieved practical prediction accuracy.
+
+## Summary
+
+Based on the final model evaluation, the neural network achieved an average prediction error (MAE) of approximately 1 percentage point. This suggests a reasonable level of accuracy in modeling diabetes prevalence using socioeconomic and food access predictors. Training and validation curves showed no signs of severe overfitting, and predicted vs. actual plots confirmed alignment with ground truth values.
+
+While neural networks don’t provide direct coefficient interpretation, future work could apply permutation importance or SHAP values to explore which predictors most influenced diabetes rate predictions.
+
+In summary, the neural network achieved the lowest prediction error among all models considered. It captured nonlinear relationships in the data and generalized well to unseen samples. While interpretability is limited, the stability and predictive accuracy justify its value as a modeling approach for county-level diabetes prevalence.
