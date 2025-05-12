@@ -528,8 +528,10 @@ print(cv_results)
 
 ## Summary
 
-Based on the final model evaluation, the neural network achieved an average prediction error (MAE) of approximately 1 percentage point. This suggests a reasonable level of accuracy in modeling diabetes prevalence using socioeconomic and food access predictors. Training and validation curves showed no signs of severe overfitting, and predicted vs. actual plots confirmed alignment with ground truth values.
+Based on final model evaluation, the **regression neural network** achieved a **mean absolute error (MAE) of approximately 1.03**, indicating strong predictive performance in modeling diabetes prevalence using socioeconomic and food access variables. Training and validation loss curves showed smooth convergence with no overfitting, and the predicted vs. actual plot demonstrated that the model closely tracked true values, especially within the common range of diabetes rates.
 
-While neural networks don’t provide direct coefficient interpretation, future work could apply permutation importance or SHAP values to explore which predictors most influenced diabetes rate predictions.
+In the **classification task**, the neural network achieved a **test accuracy of 82.3%**, with a balanced confusion matrix and strong sensitivity and specificity. These results closely matched logistic regression while uncovering nonlinear patterns in the data.
 
-In summary, the neural network achieved the lowest prediction error among all models considered. It captured nonlinear relationships in the data and generalized well to unseen samples. While interpretability is limited, the stability and predictive accuracy justify its value as a modeling approach for county-level diabetes prevalence.
+While neural networks do not provide direct interpretability like linear models, future work could incorporate permutation importance or SHAP values to analyze the relative influence of each predictor.
+
+In summary, neural networks achieved the **lowest prediction error** among all regression models considered, and classification performance on par with interpretable models. Their ability to generalize well and capture nonlinear interactions highlights their practical value in county-level diabetes modeling.
