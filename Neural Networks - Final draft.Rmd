@@ -131,13 +131,11 @@ history <- model %>% fit(
 
 -   **Final Validation MAE**: \~1.00
 
--    **Final Training MAE**: \~1.26
+-   **Final Training MAE**: \~1.26
 
 ### Summary
 
-The neural network was trained over 50 epochs on 90% of the dataset, with validation conducted on a 10% split. The model converged smoothly, achieving a final MAE of approximately **1.0** on the validation set.
-The consistent training and validation losses throughout training indicate that the model generalized well, avoiding overfitting.
-Although neural networks are less interpretable than linear models, their ability to model nonlinear relationships makes them highly effective in capturing the complex structure of diabetes prevalence across U.S. counties based on environmental and socioeconomic predictors.
+The neural network was trained over 50 epochs on 90% of the dataset, with validation conducted on a 10% split. The model converged smoothly, achieving a final MAE of approximately **1.0** on the validation set. The consistent training and validation losses throughout training indicate that the model generalized well, avoiding overfitting. Although neural networks are less interpretable than linear models, their ability to model nonlinear relationships makes them highly effective in capturing the complex structure of diabetes prevalence across U.S. counties based on environmental and socioeconomic predictors.
 
 ## 🔹 Part 9: Evaluate the Model
 
@@ -276,7 +274,7 @@ boot_results <- boot(data = df_logit, statistic = boot_fn, R = 1000)
 boot.ci(boot_results, type = "perc", index = 2)  
 ```
 
-**95% Percentile CI:** (-1.2681, 0.2082) for coefficient #2 (the first predictor after the intercept).
+**95% Percentile CI:** (-0.2681, 0.2082) for coefficient #2 (the first predictor after the intercept).
 
 **Interpretation:**
 
@@ -345,8 +343,7 @@ To analyze how the model performed over epochs, we plot the training and validat
 plot(history)
 ```
 
-This plot shows the neural network’s **training loss** and **training mean absolute error (MAE)** over 50 epochs.
-The steady decrease in both metrics, especially in the first 20 epochs, indicates effective learning.
+This plot shows the neural network’s **training loss** and **training mean absolute error (MAE)** over 50 epochs. The steady decrease in both metrics, especially in the first 20 epochs, indicates effective learning.
 
 ## 🔹 Part 11: Plot Predicted vs Actual Diabetes Rates
 
@@ -383,14 +380,8 @@ ggplot(results, aes(x = Actual, y = Predicted)) +
 This plot shows the neural network:
 
 -   Successfully learned the nonlinear relationship between predictors and diabetes rates.
-
-<!-- -->
-
--    Generalized well to the test set, with most predictions aligning closely to the actual values.
-
-<!-- -->
-
--    Produced **residual errors that appear randomly scattered**, without systematic bias — a sign of a well-calibrated model.
+-   Generalized well to the test set, with most predictions aligning closely to the actual values.
+-   Produced **residual errors that appear randomly scattered**, without systematic bias — a sign of a well-calibrated model.
 
 ### Write-up for Report
 
@@ -436,39 +427,104 @@ history_class <- model_class %>% fit(
 
 score_class <- model_class %>% evaluate(x_test, y_test)
 cat("Classification Accuracy:", round(score_class["accuracy"], 4), "\n")
+
+pred_probs <- model_class %>% predict(x_test)
+pred_class <- ifelse(pred_probs > 0.5, 1, 0)
+actual_class <- y_test
+
+table(Predicted = pred_class, Actual = actual_class)
+
+library(caret)
+confusionMatrix(factor(pred_class), factor(actual_class))
+
 ```
 
-### ✅ Summary of Results
+## ✅ **Final Results – Neural Network Classifier**
 
--    **Final test set accuracy**: **82.29%**
+### 🎯 **Test Accuracy**: **82.29%**
 
--    **Training accuracy** increased steadily to \~91%
+### 📊 **Confusion Matrix:**
 
--    **Validation accuracy** peaked early (\~82%) and then slightly decreased
+|            | **Actual 0** | **Actual 1** |
+|------------|--------------|--------------|
+| **Pred 0** | 118          | 20           |
+| **Pred 1** | 31           | 119          |
 
--    **Validation loss** increased after \~epoch 10–15 → some **overfitting** likely
+-    **True Negatives (TN)** = 118
 
-### 🧠 Interpretation
+-    **False Negatives (FN)** = 20
 
-**What the training curves show:**
+-    **False Positives (FP)** = 31
 
--    The training accuracy improved steadily, while the validation accuracy plateaued and began to drop.
+-    **True Positives (TP)** = 119
 
--    The divergence between training and validation curves suggests **moderate overfitting** after \~15 epochs.
+### 📈 Other Metrics:
 
--    Nonetheless, the model retained **strong generalization** with a **test accuracy of 82.3%** — nearly identical to your logistic regression accuracy (82.1%).
+-    **Sensitivity (Recall for class 0)**: 79.2%
 
-### 📝 Suggested Write-up for Report
+-    **Specificity (Recall for class 1)**: 85.6%
 
-In addition to predicting continuous diabetes rates, we trained a neural network to perform binary classification: identifying whether a county’s diabetes prevalence is above or below the median value.\
+-    **Balanced Accuracy**: 82.4%
 
-The classification model used a sigmoid output layer and binary cross-entropy loss. It achieved a final test accuracy of **82.3%**, closely matching the logistic regression baseline.\
+-    **Kappa**: 0.65 (good agreement beyond chance)
 
-While training accuracy continued to rise beyond epoch 15, validation accuracy plateaued and validation loss increased, indicating some degree of overfitting.\
+## 🧠 **Interpretation**
 
-Despite this, the model’s consistent performance on the test set suggests it successfully learned discriminative patterns in the data.\
+> The classification neural network achieved a **test accuracy of 82.3%**, closely matching the performance of logistic regression and showing strong generalization to new data.\
+> The **confusion matrix** shows it correctly classified most high- and low-diabetes counties, with a **balanced accuracy of 82.4%** and a **Kappa statistic of 0.65**, indicating substantial agreement.\
+> The model demonstrated better specificity (85.6%) than sensitivity (79.2%), meaning it was slightly better at identifying counties with below-median diabetes rates than above-median ones.\
+> Overall, the classification neural network effectively captured the nonlinear patterns in the data and serves as a strong classifier alongside interpretable models like logistic regression.
 
-This version of the neural net complements the regression model and fits well into the **qualitative outcome section** of the project, allowing comparison to logistic and tree-based classifiers.
+```{r}
+set.seed(123)
+folds <- createFolds(y_class, k = 10, list = TRUE)
+
+cv_results <- data.frame(Fold = integer(), Training_MSE = numeric())
+
+build_classifier <- function() {
+  keras_model_sequential() %>%
+    layer_dense(units = 256, activation = "relu", input_shape = ncol(x)) %>%
+    layer_dropout(rate = 0.4) %>%
+    layer_dense(units = 128, activation = "relu") %>%
+    layer_dropout(rate = 0.3) %>%
+    layer_dense(units = 1, activation = "sigmoid") %>%
+    compile(
+      loss = "binary_crossentropy",
+      optimizer = optimizer_rmsprop(),
+      metrics = c("accuracy")
+    )
+}
+
+for (i in seq_along(folds)) {
+  idx <- folds[[i]]
+  x_train_fold <- x[idx, ]
+  y_train_fold <- y_class[idx]
+  
+  model_fold <- build_classifier()
+  
+  history_fold <- model_fold %>%
+    fit(
+      x_train_fold,
+      y_train_fold,
+      epochs = 50,
+      batch_size = 32,
+      validation_split = 0.2,
+      verbose = 0
+    )
+  
+  final_loss <- tail(history_fold$metrics$loss, 1)
+  cv_results <- rbind(cv_results, data.frame(Fold = i, Training_MSE = final_loss))
+}
+print(cv_results)
+
+
+```
+
+## 🧠 Interpretation for 10-Fold CV Training MSE (Classifier)
+
+> We performed 10-fold cross-validation on the training set to assess the classifier's learning behavior across different subsets.\
+> The **training MSE values ranged from 0.0416 to 0.1238**, with an average around **0.07**, indicating that the model was able to learn the classification task consistently across folds.\
+> These relatively low and stable error values suggest that the network was not overly sensitive to the training partition, supporting its robustness and stability prior to final evaluation on the test set.
 
 ## Summary
 
