@@ -65,7 +65,7 @@ We split the data into training and test sets (80% training, 20% test) to evalua
 
 ```{r}
 set.seed(123)
-train_index <- createDataPartition(y, p = 0.8, list = FALSE)
+train_index <- createDataPartition(y, p = 0.9, list = FALSE)
 x_train <- x[train_index, ]
 x_test <- x[-train_index, ]
 y_train <- y[train_index]
@@ -122,20 +122,22 @@ history <- model %>% fit(
 
 ### Training Curve Insight
 
--   Both **training and validation loss (MSE)** dropped sharply in the first 10 epochs and stabilized around epoch 25–30.
--   Validation **MAE decreased to around 1.0**, showing strong predictive performance.
--   No overfitting: validation loss did **not increase**, and stayed close to training loss.
--   👉 **Conclusion:** Our neural network is learning a solid generalizable function without overfitting.
+-   Both **training and validation loss (MSE)** dropped sharply in the first 10 epochs and continued to decline gradually through epoch 50.
+-   Validation **mean absolute error (MAE)** decreased to approximately **1.0**, indicating strong generalization.
+-   There was no sign of overfitting: validation loss remained consistently below training loss, and both curves followed a smooth downward trend.
+-   **Conclusion:** Our neural network is learning a solid generalizable function without overfitting.
 
 ### Final Performance:
 
--   **Final MAE on validation set**: \~**1.0**
--   This means the model, on average, predicts diabetes prevalence within ±1 percentage point.
--   Given that the dataset includes socioeconomic and food access variables, this is **reasonably strong** predictive performance.
+-   **Final Validation MAE**: \~1.00
+
+-    **Final Training MAE**: \~1.26
 
 ### Summary
 
-The neural network trained over 50 epochs and achieved a final mean absolute error of approximately **1.0** on the validation set. The training and validation losses both showed strong and stable convergence, indicating that the model generalized well without overfitting. Although neural networks are complex and less interpretable than linear models, the consistent performance suggests that the model successfully captured nonlinear relationships between diabetes prevalence and environmental/socioeconomic predictors.
+The neural network was trained over 50 epochs on 90% of the dataset, with validation conducted on a 10% split. The model converged smoothly, achieving a final MAE of approximately **1.0** on the validation set.
+The consistent training and validation losses throughout training indicate that the model generalized well, avoiding overfitting.
+Although neural networks are less interpretable than linear models, their ability to model nonlinear relationships makes them highly effective in capturing the complex structure of diabetes prevalence across U.S. counties based on environmental and socioeconomic predictors.
 
 ## 🔹 Part 9: Evaluate the Model
 
@@ -146,31 +148,31 @@ score <- model %>% evaluate(x_test, y_test)
 cat("Final Test MAE:", score["mean_absolute_error"], "\n")
 ```
 
-### Final MAE on Test set: 1.04
+### Final MAE on Test set: 1.03
 
--   This means the neural network predicts county-level diabetes rates within about **±1.04 percentage points** on average.
+-   The neural network predicts county-level diabetes rates within about **±1.03 percentage points** on average.
 
 -   The performance is **consistent with the validation MAE (\~1.0)** from Part 8 → **no overfitting** or performance collapse.
 
 ### What this tells us:
 
--   The model **generalizes well** to unseen data.
+-   The model generalizes well to unseen data.
 
--   It is **stable**, having similar performance across training, validation, and test.
+-   It is stable, having similar performance across training, validation, and test.
 
--   This confirms that the neural network learned **true signal** from the data, not noise.
+-   This confirms that the neural network learned meaningful patterns in the data rather than overfitting to noise.
 
 ### Write-up in report:
 
-On the held-out test set, the neural network achieved a mean absolute error (MAE) of approximately **1.04**, confirming that the model’s performance generalized well beyond the training data.\
+On the held-out test set (comprising 10% of the data), the neural network achieved a mean absolute error (MAE) of approximately **1.03**, confirming that the model’s performance generalized well beyond the training data.\
 
-This consistency with the validation MAE (\~1.0) further demonstrates that the model did not overfit and maintained accuracy across unseen samples.\
+This aligns closely with the validation MAE (\~1.00), demonstrating that the model did not overfit and maintained strong predictive accuracy on new observations.\
 
-These results support the neural network as a reliable method for predicting diabetes rates based on food environment and socioeconomic indicators.
+These results support the neural network as a reliable method for predicting diabetes rates based on food access and socioeconomic indicators at the county level.
 
-## 🧠 NEW PART 9.5: Cross-Validation and Logistic Regression Analysis
+## 🔹PART 9.5: Cross-Validation and Logistic Regression Analysis
 
-### 🔹 🔁 Step 1: 10-Fold Cross-Validation for Neural Network
+### Step 1: 10-Fold Cross-Validation for Neural Network
 
 We use 10-fold cross-validation to estimate the out-of-sample performance of our neural network across multiple data splits.
 
@@ -232,7 +234,7 @@ cat("10-Fold CV MAE:", mean(cv_mae), "\n")
 
     -   **Validation MAE (\~1.0)** from training
 
-    -   **Test MAE (\~1.04)** from evaluation in Part 9
+    -   **Test MAE (\~1.03)** from evaluation in Part 9
 
 **Interpretation:**
 
@@ -246,9 +248,9 @@ cat("10-Fold CV MAE:", mean(cv_mae), "\n")
 
 **Write-up in the Report:**
 
-We performed 10-fold cross-validation to assess the generalization ability of the neural network. The average mean absolute error (MAE) across all folds was approximately **1.07**, consistent with the earlier test MAE of **1.04**. This result confirms that the model maintains stable predictive accuracy across multiple data partitions, suggesting good generalization and low variance.
+We performed 10-fold cross-validation to assess the generalization ability of the neural network. The average mean absolute error (MAE) across all folds was approximately **1.07**, consistent with the earlier test MAE of **1.03**. This result confirms that the model maintains stable predictive accuracy across multiple data partitions, suggesting good generalization and low variance.
 
-### 🔹 📈 **Step 2: Logistic Regression with Bootstrap Confidence Intervals**
+### **Step 2: Logistic Regression with Bootstrap Confidence Intervals**
 
 We fit a logistic regression model and use bootstrapping to estimate the confidence intervals of its coefficients, adding interpretability to our analysis.
 
@@ -302,7 +304,7 @@ for (i in 2:length(coef(logit_model))) {
 
 We fit a logistic regression model using a binary version of the diabetes outcome (above/below median). Using 1,000 bootstrap replicates, we estimated 95% confidence intervals for each coefficient. Of the 32 predictors, **18 showed statistically significant effects**, as their confidence intervals excluded zero. These included both positive and negative associations, giving insight into which environmental and demographic factors increase or reduce the likelihood of high diabetes rates. While the neural network provided better predictive accuracy, logistic regression adds **interpretable insight** into the directional influence of specific variables.
 
-### ✅ Part 9.6: Logistic Regression Classification Accuracy
+### Part 9.6: Logistic Regression Classification Accuracy
 
 ```{r}
 pred_probs <- predict(logit_model, type = "response")
@@ -328,12 +330,12 @@ cat("Logistic Regression Error Rate:", round(error_rate, 4), "\n")
 **Interpretation:**
 
 -   An 82% accuracy means our logistic regression model correctly classifies over 4 out of 5 counties as above or below the median diabetes rate.
--   This is **only slightly behind** our neural network MAE (\~1.04), making logistic regression a strong **interpretable baseline**.
+-   This is **only slightly behind** our neural network MAE (\~1.03), making logistic regression a strong **interpretable baseline**.
 -   Since you also have **bootstrap confidence intervals**, this model adds **transparency and feature-level insights** that the neural net can’t directly provide.
 
 **Write up for Report:**
 
-The logistic regression model achieved a classification accuracy of **82.1%**, corresponding to a misclassification rate of **17.9%**. While its performance is slightly behind the neural network in terms of continuous prediction accuracy (MAE \~1.04), it offers significantly greater interpretability. Combined with bootstrap confidence intervals, this model helps identify statistically significant predictors of high diabetes prevalence while maintaining competitive classification performance.
+The logistic regression model achieved a classification accuracy of **82.1%**, corresponding to a misclassification rate of **17.9%**. While its performance is slightly behind the neural network in terms of continuous prediction accuracy (MAE \~1.03), it offers significantly greater interpretability. Combined with bootstrap confidence intervals, this model helps identify statistically significant predictors of high diabetes prevalence while maintaining competitive classification performance.
 
 ## 🔹 Part 10: Visualize Training Progress
 
@@ -343,35 +345,8 @@ To analyze how the model performed over epochs, we plot the training and validat
 plot(history)
 ```
 
-### Top plot (loss)
-
--   Both training and validation loss steadily decrease, then plateau.
-
--   No signs of overfitting – Validation loss doesn't increase or diverge.
-
-### Bottom plot (Mean Absolute Error):
-
--   MAE decreases smootly for both training and validation.
-
--   By epoch \~15–20, the improvement rate slows, suggesting that 20–30 epochs would’ve been enough (50 is fine too).
-
-### 🔍 Key Takeaways
-
--   The neural network **converged properly.**
-
--   There's **no sign of underfitting** (both curves start high).
-
--   There’s **no sign of overfitting** (training ≈ validation error).
-
--   Training performance is stable and generalizable.
-
-### Write-up for Report
-
-The training progress plot shows that both loss and mean absolute error decreased consistently over the 50 epochs for both the training and validation sets.\
-
-The validation curve closely followed the training curve without divergence, which suggests the model generalized well and did not overfit.\
-
-This confirms that the model learned stable patterns in the data and converged within the given training window.
+This plot shows the neural network’s **training loss** and **training mean absolute error (MAE)** over 50 epochs.
+The steady decrease in both metrics, especially in the first 20 epochs, indicates effective learning.
 
 ## 🔹 Part 11: Plot Predicted vs Actual Diabetes Rates
 
@@ -395,33 +370,105 @@ ggplot(results, aes(x = Actual, y = Predicted)) +
   )
 ```
 
-### 📈 What the Plot Shows:
+### What the Plot Shows:
 
--   Most points cluster tightly around the **diagonal red dashed line**, which represents **perfect predictions**.
+-   Most points cluster tightly around the diagonal red dashed line, representing perfect predictions.
 
--   The model accurately captures diabetes rates in the **mid-range (7%–14%)**, where most data points fall.
+-   The model accurately captures diabetes rates in the **core range of 8%–14%**, where most counties lie.
 
--   Slight underprediction at the high end (15%+) and slight overprediction at the low end — **common** in regression models due to limited data in extremes.
+-   There is **slight underprediction** at the higher end (15%+), consistent with limited training data in that range, and **mild overprediction** in the lowest range (\<8%).
 
-### 🧠 Interpretation
+### Interpretation
 
 This plot shows the neural network:
 
--   **Learned a strong relationship** between predictors and diabetes rates.
+-   Successfully learned the nonlinear relationship between predictors and diabetes rates.
 
--   **Generalizes well**, as predictions don’t deviate wildly.
+<!-- -->
 
--   Makes **residual errors that appear randomly distributed**, which is desirable.
+-    Generalized well to the test set, with most predictions aligning closely to the actual values.
+
+<!-- -->
+
+-    Produced **residual errors that appear randomly scattered**, without systematic bias — a sign of a well-calibrated model.
 
 ### Write-up for Report
 
-The predicted vs. actual plot shows that the neural network closely tracks the true diabetes rates across the test set.
+The predicted versus actual plot shows that the neural network closely tracks the true diabetes rates in the 10% test set.\
 
-Most predictions fall near the identity line, indicating accurate performance, particularly in the most common range of 7–14%.
+Most predictions fall near the identity line, particularly within the range of **8% to 14%**, which contains the majority of counties.\
 
-The model slightly underestimates high diabetes rates and overestimates low ones, but this pattern is modest and expected in real-world health data.
+The model tends to slightly underpredict in counties with very high diabetes rates (\>15%), which is expected due to their relative rarity in the dataset.\
 
-Overall, this visualization confirms that the model captured meaningful structure in the data and achieved practical prediction accuracy.
+Overall, the visualization confirms that the neural network captured meaningful structure in the data and maintained strong predictive accuracy across a realistic range of values.
+
+## Neural Net for Classification (High/Low Diabetes Rate)
+
+```{r}
+y_class <- ifelse(y > median(y), 1, 0)
+
+set.seed(123)
+train_index <- createDataPartition(y_class, p = 0.9, list = FALSE)
+x_train <- x[train_index, ]
+x_test <- x[-train_index, ]
+y_train <- y_class[train_index]
+y_test <- y_class[-train_index]
+
+model_class <- keras_model_sequential() %>%
+  layer_dense(units = 256, activation = "relu", input_shape = ncol(x_train)) %>%
+  layer_dropout(rate = 0.4) %>%
+  layer_dense(units = 128, activation = "relu") %>%
+  layer_dropout(rate = 0.3) %>%
+  layer_dense(units = 1, activation = "sigmoid")  # sigmoid for binary output
+
+model_class %>% compile(
+  loss = "binary_crossentropy",
+  optimizer = optimizer_rmsprop(),
+  metrics = c("accuracy")
+)
+
+history_class <- model_class %>% fit(
+  x_train, y_train,
+  epochs = 50,
+  batch_size = 32,
+  validation_split = 0.2
+)
+
+score_class <- model_class %>% evaluate(x_test, y_test)
+cat("Classification Accuracy:", round(score_class["accuracy"], 4), "\n")
+```
+
+### ✅ Summary of Results
+
+-    **Final test set accuracy**: **82.29%**
+
+-    **Training accuracy** increased steadily to \~91%
+
+-    **Validation accuracy** peaked early (\~82%) and then slightly decreased
+
+-    **Validation loss** increased after \~epoch 10–15 → some **overfitting** likely
+
+### 🧠 Interpretation
+
+**What the training curves show:**
+
+-    The training accuracy improved steadily, while the validation accuracy plateaued and began to drop.
+
+-    The divergence between training and validation curves suggests **moderate overfitting** after \~15 epochs.
+
+-    Nonetheless, the model retained **strong generalization** with a **test accuracy of 82.3%** — nearly identical to your logistic regression accuracy (82.1%).
+
+### 📝 Suggested Write-up for Report
+
+In addition to predicting continuous diabetes rates, we trained a neural network to perform binary classification: identifying whether a county’s diabetes prevalence is above or below the median value.\
+
+The classification model used a sigmoid output layer and binary cross-entropy loss. It achieved a final test accuracy of **82.3%**, closely matching the logistic regression baseline.\
+
+While training accuracy continued to rise beyond epoch 15, validation accuracy plateaued and validation loss increased, indicating some degree of overfitting.\
+
+Despite this, the model’s consistent performance on the test set suggests it successfully learned discriminative patterns in the data.\
+
+This version of the neural net complements the regression model and fits well into the **qualitative outcome section** of the project, allowing comparison to logistic and tree-based classifiers.
 
 ## Summary
 
