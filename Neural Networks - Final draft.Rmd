@@ -396,9 +396,14 @@ Overall, the visualization confirms that the neural network captured meaningful 
 ## Neural Net for Classification (High/Low Diabetes Rate)
 
 ```{r}
+library(tensorflow)
+library(keras)
+library(reticulate)
 y_class <- ifelse(y > median(y), 1, 0)
 
 set.seed(123)
+tensorflow::set_random_seed(123)
+Sys.setenv("TF_DETERMINISTIC_OPS" = "1")
 train_index <- createDataPartition(y_class, p = 0.9, list = FALSE)
 x_train <- x[train_index, ]
 x_test <- x[-train_index, ]
